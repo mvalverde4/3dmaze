@@ -46,12 +46,132 @@
         @media (max-width: 768px) {
             .touch-controls { display: flex; }
         }
+
+        /* Title Screen Styles */
+        #titleScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #1a1a1a, #4a4a4a);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .title {
+            color: white;
+            font-size: 3em;
+            margin-bottom: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .menu-button {
+            width: 200px;
+            height: 50px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            background: #007bff;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .menu-button:hover {
+            background: #0056b3;
+        }
+
+        .texture-upload {
+            display: none;
+        }
+
+        .texture-label {
+            width: 200px;
+            height: 50px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            background: #28a745;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .texture-label:hover {
+            background: #218838;
+        }
+
+        #game {
+            display: none;
+        }
+
+        /* Game Over Screen Styles */
+        #gameOverScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .game-over-title {
+            color: white;
+            font-size: 4em;
+            margin-bottom: 1em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .game-over-text {
+            color: white;
+            font-size: 1.5em;
+            margin-bottom: 2em;
+        }
     </style>
 </head>
 <body>
-    <div class="controls">
-        <input type="file" id="mazeUpload" accept=".txt">
-        <input type="file" id="textureUpload" accept="image/*" multiple>
+    <div id="titleScreen">
+        <h1 class="title">3D Maze Game</h1>
+        
+        <label for="wallTexture" class="texture-label">
+            Upload Wall Texture
+            <input type="file" id="wallTexture" class="texture-upload" accept="image/png">
+        </label>
+        
+        <label for="floorTexture" class="texture-label">
+            Upload Floor Texture
+            <input type="file" id="floorTexture" class="texture-upload" accept="image/png">
+        </label>
+
+        <select id="pyramidMode" class="menu-button" style="background: #6c757d; text-align: center;">
+            <option value="closest">Pyramid on Closest Red Tile</option>
+            <option value="random">Pyramid on Random Red Tile</option>
+            <option value="all">Pyramids on All Red Tiles</option>
+        </select>
+        
+        <button id="startButton" class="menu-button">Start Game</button>
+    </div>
+    
+    <div id="game"></div>
+    
+    <div id="gameOverScreen">
+        <h1 class="game-over-title">Congratulations!</h1>
+        <p class="game-over-text">You've successfully escaped the maze!</p>
+        <button id="restartButton" class="menu-button">Play Again</button>
     </div>
 </body>
 </html> 

@@ -1,12 +1,29 @@
 import * as THREE from 'three';
 import { MazeGenerator, Cell } from './maze';
 
+// Declare the initGame function from index.ts
+declare function initGame(pyramidMode: PyramidPlacementMode, wallTexture?: string, floorTexture?: string): void;
+
+export enum PyramidPlacementMode {
+  ALL_RED_TILES = 'all',
+  RANDOM_RED_TILE = 'random',
+  CLOSEST_RED_TILE = 'closest'
+}
+
 export class MazeScene {
   private scene: THREE.Scene;
   private mainCamera: THREE.PerspectiveCamera;
   private miniMapCamera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
   private animationFrameId: number | null = null;
+  private textureLoader: THREE.TextureLoader;
+  private wallTexture: THREE.Texture | null = null;
+  private floorTexture: THREE.Texture | null = null;
+  private customWallTexture: string | undefined;
+  private customFloorTexture: string | undefined;
+  private pyramids: THREE.Mesh[] = []; // Store all pyramid meshes
+  private pyramidPlacementMode: PyramidPlacementMode;
+  private farthestDeadEndTile: THREE.Vector3 | null = null;
 
   // Initialize properties with default values
   private currentPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -31,9 +48,17 @@ export class MazeScene {
   private rotationStartAngle: number = 0;
   private readonly ROTATION_DURATION: number = 300; // Duration in milliseconds
 
-  constructor() {
+  constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string) {
+    this.pyramidPlacementMode = pyramidMode;
+    this.customWallTexture = wallTexture;
+    this.customFloorTexture = floorTexture;
+    
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x000000); // Add black background
+    this.scene.background = new THREE.Color(0x000000);
+    this.textureLoader = new THREE.TextureLoader();
+    
+    // Load textures
+    this.loadTextures();
     
     // Main (first-person) camera
     this.mainCamera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -72,6 +97,7 @@ export class MazeScene {
     window.addEventListener('keydown', this.handleKeyDown.bind(this));
     
     window.addEventListener('resize', this.handleResize.bind(this));
+
     this.animate();
   }
 
@@ -188,20 +214,172 @@ export class MazeScene {
     this.positionIndicator.rotation.y = -this.currentRotation;
   }
 
+  private loadTextures() {
+    console.log('Starting texture loading...');
+    
+    // Load wall texture
+    const loadWallTexture = this.customWallTexture
+      ? this.textureLoader.loadAsync(this.customWallTexture)
+      : this.textureLoader.loadAsync('/textures/wall.png');
+    
+    loadWallTexture.then(
+      (texture) => {
+        console.log('Wall texture loaded successfully');
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        this.wallTexture = texture;
+        this.updateWallTextures();
+      }
+    ).catch((error) => {
+      console.error('Error loading wall texture:', error);
+    });
+
+    // Load floor texture
+    const loadFloorTexture = this.customFloorTexture
+      ? this.textureLoader.loadAsync(this.customFloorTexture)
+      : this.textureLoader.loadAsync('/textures/floor.png');
+    
+    loadFloorTexture.then(
+      (texture) => {
+        console.log('Floor texture loaded successfully');
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(8, 8);
+        this.floorTexture = texture;
+        this.updateFloorTexture();
+      }
+    ).catch((error) => {
+      console.error('Error loading floor texture:', error);
+    });
+  }
+
+  private updateWallTextures() {
+    if (!this.wallTexture) {
+      console.log('No wall texture available for update');
+      return;
+    }
+    console.log('Updating wall textures...');
+    let wallCount = 0;
+    this.scene.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        const material = object.material as THREE.MeshPhongMaterial;
+        if (material.color.getHex() === 0x808080) {
+          wallCount++;
+          material.map = this.wallTexture;
+          material.needsUpdate = true;
+        }
+      }
+    });
+    console.log(`Updated ${wallCount} wall textures`);
+  }
+
+  private updateFloorTexture() {
+    if (!this.floorTexture) {
+      console.log('No floor texture available for update');
+      return;
+    }
+    console.log('Updating floor texture...');
+    let floorCount = 0;
+    this.scene.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        const material = object.material as THREE.MeshPhongMaterial;
+        if (material.color.getHex() === 0xCCCCCC) {
+          floorCount++;
+          material.map = this.floorTexture;
+          material.needsUpdate = true;
+        }
+      }
+    });
+    console.log(`Updated ${floorCount} floor textures`);
+  }
+
+  private findClosestRedTile(redTilePositions: { x: number, z: number }[], centerX: number, centerZ: number): { x: number, z: number } | null {
+    // Convert world coordinates to grid coordinates
+    const startGridX = Math.round((centerX + 7) / 2);
+    const startGridZ = Math.round((centerZ + 7) / 2);
+    
+    // Convert red tile positions to grid coordinates
+    const redTileGridPositions = redTilePositions.map(pos => ({
+      x: Math.round((pos.x + 7) / 2),
+      z: Math.round((pos.z + 7) / 2)
+    }));
+
+    // Queue for BFS: [x, z, distance]
+    const queue: [number, number, number][] = [[startGridX, startGridZ, 0]];
+    const visited = new Set<string>();
+    visited.add(`${startGridX},${startGridZ}`);
+
+    let closestRedTile: { x: number, z: number } | null = null;
+    let shortestDistance = Infinity;
+
+    while (queue.length > 0) {
+      const [currentX, currentZ, distance] = queue.shift()!;
+      
+      // Check if current position is a red tile
+      const isRedTile = redTileGridPositions.some(pos => pos.x === currentX && pos.z === currentZ);
+      if (isRedTile && distance < shortestDistance) {
+        shortestDistance = distance;
+        closestRedTile = {
+          x: currentX * 2 - 7, // Convert back to world coordinates
+          z: currentZ * 2 - 7
+        };
+      }
+
+      // Get current cell
+      const cell = this.maze[currentX][currentZ];
+
+      // Check each direction
+      const directions = [
+        { dx: 0, dz: -1, wall: 'north' },
+        { dx: 0, dz: 1, wall: 'south' },
+        { dx: 1, dz: 0, wall: 'east' },
+        { dx: -1, dz: 0, wall: 'west' }
+      ];
+
+      for (const { dx, dz, wall } of directions) {
+        const nextX = currentX + dx;
+        const nextZ = currentZ + dz;
+        const key = `${nextX},${nextZ}`;
+
+        // Check if the next position is valid and not visited
+        if (nextX >= 0 && nextX < 8 && nextZ >= 0 && nextZ < 8 &&
+            !visited.has(key) && !cell.walls[wall as keyof Cell['walls']]) {
+          queue.push([nextX, nextZ, distance + 1]);
+          visited.add(key);
+        }
+      }
+    }
+
+    return closestRedTile;
+  }
+
   private createMaze() {
     const mazeGen = new MazeGenerator(8);
     const { grid: maze, centerDeadEnd, farthestDeadEnd } = mazeGen.generate();
     this.maze = maze;
 
+    // Store the farthest dead end position for win condition checking
+    this.farthestDeadEndTile = new THREE.Vector3(
+      farthestDeadEnd.x * 2 - 7,
+      0,
+      farthestDeadEnd.y * 2 - 7
+    );
+
     // Create base floor
     const floorGeometry = new THREE.PlaneGeometry(16, 16);
-    const floorMaterial = new THREE.MeshPhongMaterial({ color: 0xCCCCCC }); // Lighter grey
+    const floorMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0xCCCCCC,
+      map: this.floorTexture
+    });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
     this.scene.add(floor);
 
     // Create individual floor tiles
     const tileGeometry = new THREE.PlaneGeometry(2, 2);
+    
+    // Collect positions of red tiles
+    const redTilePositions: { x: number, z: number }[] = [];
     
     maze.forEach((row, x) => {
       row.forEach((cell, y) => {
@@ -225,6 +403,11 @@ export class MazeScene {
           deadEndTile.rotation.x = -Math.PI / 2;
           deadEndTile.position.set(worldX, 0.01, worldZ);
           this.scene.add(deadEndTile);
+
+          // Collect red tile positions
+          if (tileColor === 0xff0000) {
+            redTilePositions.push({ x: worldX, z: worldZ });
+          }
         }
 
         // Create walls
@@ -243,10 +426,39 @@ export class MazeScene {
       });
     });
 
+    // Get the world coordinates of the blue tile (center dead end)
+    const centerX = centerDeadEnd.x * 2 - 7;
+    const centerZ = centerDeadEnd.y * 2 - 7;
+
+    // Create pyramids based on selected mode
+    switch (this.pyramidPlacementMode) {
+      case PyramidPlacementMode.ALL_RED_TILES:
+        // Create pyramids on all red tiles
+        redTilePositions.forEach(pos => {
+          this.createPyramid(pos.x, pos.z);
+        });
+        break;
+
+      case PyramidPlacementMode.RANDOM_RED_TILE:
+        // Create pyramid on a random red tile
+        if (redTilePositions.length > 0) {
+          const randomIndex = Math.floor(Math.random() * redTilePositions.length);
+          const randomPosition = redTilePositions[randomIndex];
+          this.createPyramid(randomPosition.x, randomPosition.z);
+        }
+        break;
+
+      case PyramidPlacementMode.CLOSEST_RED_TILE:
+        // Create pyramid on the closest red tile
+        const closestRedTile = this.findClosestRedTile(redTilePositions, centerX, centerZ);
+        if (closestRedTile) {
+          this.createPyramid(closestRedTile.x, closestRedTile.z);
+        }
+        break;
+    }
+
     // Position main camera at the blue tile (center-most dead end)
-    const worldX = centerDeadEnd.x * 2 - 7;
-    const worldZ = centerDeadEnd.y * 2 - 7;
-    this.mainCamera.position.set(worldX, 0.5, worldZ);
+    this.mainCamera.position.set(centerX, 0.5, centerZ);
 
     // Find the direction WITHOUT walls (the open path)
     const cell = maze[centerDeadEnd.x][centerDeadEnd.y];
@@ -257,7 +469,7 @@ export class MazeScene {
     this.mainCamera.rotation.y = direction;
     
     // Store initial position
-    this.currentPosition = new THREE.Vector3(worldX, 0.5, worldZ);
+    this.currentPosition = new THREE.Vector3(centerX, 0.5, centerZ);
     
     // Update both indicators with initial direction
     this.updateCompassDirection(direction);
@@ -270,10 +482,39 @@ export class MazeScene {
       1,
       isNorthSouth ? 0.1 : 2
     );
-    const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 }); // Keep walls the same grey
+    const wallMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x808080,
+      map: this.wallTexture ? this.wallTexture.clone() : null
+    });
+    
+    // Set texture repeat based on wall orientation
+    if (wallMaterial.map) {
+      wallMaterial.map.wrapS = THREE.RepeatWrapping;
+      wallMaterial.map.wrapT = THREE.RepeatWrapping;
+      wallMaterial.map.repeat.set(
+        isNorthSouth ? 1 : 0.05,
+        0.5
+      );
+      wallMaterial.needsUpdate = true;
+    }
+    
     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
     wall.position.set(x, 0.5, z);
     this.scene.add(wall);
+  }
+
+  private createPyramid(x: number, z: number) {
+    // Create pyramid geometry
+    const geometry = new THREE.ConeGeometry(0.3, 0.6, 4);
+    const material = new THREE.MeshPhongMaterial({ color: 0xFFA500 }); // Orange color
+    const pyramid = new THREE.Mesh(geometry, material);
+    
+    // Position the pyramid
+    pyramid.position.set(x, 0.8, z); // Float 0.8 units above the floor
+    pyramid.rotation.y = Math.PI / 4; // Initial 45-degree rotation for better orientation
+    
+    this.scene.add(pyramid);
+    this.pyramids.push(pyramid);
   }
 
   private getOpenDirection(cell: Cell): number {
@@ -319,6 +560,9 @@ export class MazeScene {
         this.currentPosition.copy(this.targetPosition);
         this.mainCamera.position.copy(this.targetPosition);
         this.updatePositionIndicator();
+        
+        // Check win condition after movement is complete
+        this.checkWinCondition();
       }
     }
 
@@ -344,6 +588,11 @@ export class MazeScene {
         this.updatePositionIndicator();
       }
     }
+
+    // Rotate pyramids
+    this.pyramids.forEach(pyramid => {
+      pyramid.rotation.y += 0.02; // Rotate 0.02 radians per frame
+    });
     
     // Clear everything
     this.renderer.clear();
@@ -548,6 +797,33 @@ export class MazeScene {
         case 'ArrowRight':
             this.rotateRight();
             break;
+    }
+  }
+
+  private checkWinCondition() {
+    if (!this.farthestDeadEndTile) return;
+
+    // Convert current position to grid coordinates
+    const currentGridX = Math.round((this.currentPosition.x + 7) / 2);
+    const currentGridZ = Math.round((this.currentPosition.z + 7) / 2);
+
+    // Convert farthest dead end to grid coordinates
+    const targetGridX = Math.round((this.farthestDeadEndTile.x + 7) / 2);
+    const targetGridZ = Math.round((this.farthestDeadEndTile.z + 7) / 2);
+
+    // Check if player has reached the green tile
+    if (currentGridX === targetGridX && currentGridZ === targetGridZ) {
+      // Show game over screen
+      const gameOverScreen = document.getElementById('gameOverScreen');
+      if (gameOverScreen) {
+        gameOverScreen.style.display = 'flex';
+      }
+      
+      // Stop the animation loop
+      if (this.animationFrameId !== null) {
+        cancelAnimationFrame(this.animationFrameId);
+        this.animationFrameId = null;
+      }
     }
   }
 } 
