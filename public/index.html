@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Maze Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+        }
+        .touch-controls {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            gap: 20px;
+        }
+        .dpad, .rotation-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: #444;
+            color: white;
+            font-size: 1.2em;
+            touch-action: manipulation;
+        }
+        @media (max-width: 768px) {
+            .touch-controls { display: flex; }
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <input type="file" id="mazeUpload" accept=".txt">
+        <input type="file" id="textureUpload" accept="image/*" multiple>
+    </div>
+</body>
+</html> 
