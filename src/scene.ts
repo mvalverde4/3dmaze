@@ -47,6 +47,8 @@ export class MazeScene {
   private rotationStartTime: number = 0;
   private rotationStartAngle: number = 0;
   private readonly ROTATION_DURATION: number = 300; // Duration in milliseconds
+  private score: number = 0;
+  private scoreDisplay: HTMLDivElement;
 
   constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string) {
     this.pyramidPlacementMode = pyramidMode;
@@ -56,6 +58,22 @@ export class MazeScene {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
     this.textureLoader = new THREE.TextureLoader();
+    
+    // Create score display
+    this.scoreDisplay = document.createElement('div');
+    this.scoreDisplay.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 10px;
+      font-size: 24px;
+      font-weight: bold;
+      z-index: 1000;
+    `;
+    this.updateScoreDisplay();
+    document.body.appendChild(this.scoreDisplay);
     
     // Load textures
     this.loadTextures();
@@ -74,11 +92,11 @@ export class MazeScene {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(this.renderer.domElement);
     
-    const ambientLight = new THREE.AmbientLight(0x404040);
+    const ambientLight = new THREE.AmbientLight(0x808080, 1.0);
     this.scene.add(ambientLight);
     
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(0, 50, 0);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(0, 10, 0);
     this.scene.add(directionalLight);
 
     // Create control buttons
@@ -554,12 +572,18 @@ export class MazeScene {
         );
         this.mainCamera.position.copy(this.currentPosition);
         this.updatePositionIndicator();
+
+        // Check for pyramid collisions
+        this.checkPyramidCollisions();
       } else {
         // Animation complete
         this.isMoving = false;
         this.currentPosition.copy(this.targetPosition);
         this.mainCamera.position.copy(this.targetPosition);
         this.updatePositionIndicator();
+        
+        // Check for pyramid collisions
+        this.checkPyramidCollisions();
         
         // Check win condition after movement is complete
         this.checkWinCondition();
@@ -618,6 +642,30 @@ export class MazeScene {
     this.renderer.render(this.scene, this.miniMapCamera);
   }
 
+  private checkPyramidCollisions() {
+    const collisionDistance = 0.8; // Distance threshold for collision
+    const pyramidsToRemove: THREE.Mesh[] = [];
+
+    // Check each pyramid for collision with the camera
+    this.pyramids.forEach(pyramid => {
+      const distance = this.currentPosition.distanceTo(pyramid.position);
+      if (distance < collisionDistance) {
+        pyramidsToRemove.push(pyramid);
+      }
+    });
+
+    // Remove collided pyramids and update score
+    pyramidsToRemove.forEach(pyramid => {
+      const index = this.pyramids.indexOf(pyramid);
+      if (index > -1) {
+        this.pyramids.splice(index, 1);
+        this.scene.remove(pyramid);
+        this.score++;
+        this.updateScoreDisplay();
+      }
+    });
+  }
+
   public dispose() {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
@@ -626,6 +674,9 @@ export class MazeScene {
     // Remove both event listeners
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('keydown', this.handleKeyDown);
+    
+    // Remove score display
+    document.body.removeChild(this.scoreDisplay);
     
     this.scene.traverse((object: THREE.Object3D) => {
       if (object instanceof THREE.Mesh) {
@@ -825,5 +876,9 @@ export class MazeScene {
         this.animationFrameId = null;
       }
     }
+  }
+
+  private updateScoreDisplay() {
+    this.scoreDisplay.textContent = `Score: ${this.score}`;
   }
 } 
