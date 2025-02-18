@@ -24,6 +24,10 @@ export class MazeScene {
   private pyramids: THREE.Mesh[] = []; // Store all pyramid meshes
   private pyramidPlacementMode: PyramidPlacementMode;
   private farthestDeadEndTile: THREE.Vector3 | null = null;
+  private mazeSize: number;
+  private texturesLoadedCallback: (() => void) | null = null;
+  private wallTextureLoaded: boolean = false;
+  private floorTextureLoaded: boolean = false;
 
   // Initialize properties with default values
   private currentPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -31,7 +35,7 @@ export class MazeScene {
   private maze: Cell[][] = [];
 
   // Initialize position indicator with non-null assertion
-  private positionIndicator!: THREE.Mesh;
+  private positionIndicator!: THREE.Group;
 
   // Add new properties for animation
   private isMoving: boolean = false;
@@ -50,10 +54,11 @@ export class MazeScene {
   private score: number = 0;
   private scoreDisplay: HTMLDivElement;
 
-  constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string) {
+  constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string, mazeSize: number = 8) {
     this.pyramidPlacementMode = pyramidMode;
     this.customWallTexture = wallTexture;
     this.customFloorTexture = floorTexture;
+    this.mazeSize = mazeSize;
     
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
@@ -83,8 +88,9 @@ export class MazeScene {
     
     // Mini-map camera (overhead view)
     this.miniMapCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-    this.miniMapCamera.position.set(0, 16, 16);
+    this.miniMapCamera.position.set(0, this.mazeSize * 2, 0); // Reduced height and removed z-offset
     this.miniMapCamera.lookAt(0, 0, 0);
+    this.miniMapCamera.rotation.z = 0; // Ensure no roll rotation
     
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -206,20 +212,42 @@ export class MazeScene {
   private createPositionIndicator() {
     // Create a triangle shape
     const shape = new THREE.Shape();
-    shape.moveTo(0, 0.25);      // Point forward (along Z axis)
-    shape.lineTo(-0.15, -0.15); // Back left
-    shape.lineTo(0.15, -0.15);  // Back right
-    shape.lineTo(0, 0.25);      // Back to front
+    shape.moveTo(0, 0.4);       // Point forward
+    shape.lineTo(-0.25, -0.25); // Back left
+    shape.lineTo(0.25, -0.25);  // Back right
+    shape.lineTo(0, 0.4);       // Back to front
 
     const geometry = new THREE.ShapeGeometry(shape);
     const material = new THREE.MeshBasicMaterial({ 
-        color: 0xffff00,  // Changed to yellow
+        color: 0xffff00,  // Yellow
         side: THREE.DoubleSide 
     });
 
-    this.positionIndicator = new THREE.Mesh(geometry, material);
-    this.positionIndicator.rotation.x = -Math.PI / 2;  // Lay flat on floor
-    this.positionIndicator.position.y = 0.02;  // Slightly above floor
+    // Create the mesh
+    const triangleMesh = new THREE.Mesh(geometry, material);
+
+    // Create edges for the black border
+    const edges = new THREE.EdgesGeometry(geometry);
+    const borderMaterial = new THREE.LineBasicMaterial({ 
+        color: 0x000000,  // Black
+        linewidth: 2      // Note: linewidth only works in Firefox
+    });
+    const borderMesh = new THREE.LineSegments(edges, borderMaterial);
+
+    // Group them together
+    this.positionIndicator = new THREE.Group();
+    this.positionIndicator.add(triangleMesh);
+    this.positionIndicator.add(borderMesh);
+
+    // Position slightly above the floor to prevent z-fighting
+    triangleMesh.position.y = 0.001;
+    borderMesh.position.y = 0.002;
+
+    // Set rotation order and initial rotation
+    this.positionIndicator.rotation.order = 'XYZ';
+    this.positionIndicator.rotation.x = -Math.PI / 2;
+    this.positionIndicator.position.y = 0.01;
+
     this.scene.add(this.positionIndicator);
   }
 
@@ -228,12 +256,16 @@ export class MazeScene {
     this.positionIndicator.position.x = this.currentPosition.x;
     this.positionIndicator.position.z = this.currentPosition.z;
     
-    // Update rotation (remove the 90-degree offset)
-    this.positionIndicator.rotation.y = -this.currentRotation;
+    // Update rotation - apply the negative rotation to make it point in the correct direction
+    this.positionIndicator.rotation.z = this.currentRotation;
   }
 
   private loadTextures() {
     console.log('Starting texture loading...');
+    
+    // Reset texture loaded flags
+    this.wallTextureLoaded = false;
+    this.floorTextureLoaded = false;
     
     // Load wall texture
     const loadWallTexture = this.customWallTexture
@@ -245,11 +277,18 @@ export class MazeScene {
         console.log('Wall texture loaded successfully');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
         this.wallTexture = texture;
         this.updateWallTextures();
+        this.wallTextureLoaded = true;
+        this.checkTexturesLoaded();
       }
     ).catch((error) => {
       console.error('Error loading wall texture:', error);
+      this.wallTextureLoaded = true; // Mark as loaded even on error to prevent hanging
+      this.checkTexturesLoaded();
     });
 
     // Load floor texture
@@ -262,12 +301,20 @@ export class MazeScene {
         console.log('Floor texture loaded successfully');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(8, 8);
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+        // Scale the texture repeat based on maze size
+        texture.repeat.set(this.mazeSize, this.mazeSize);
         this.floorTexture = texture;
         this.updateFloorTexture();
+        this.floorTextureLoaded = true;
+        this.checkTexturesLoaded();
       }
     ).catch((error) => {
       console.error('Error loading floor texture:', error);
+      this.floorTextureLoaded = true; // Mark as loaded even on error to prevent hanging
+      this.checkTexturesLoaded();
     });
   }
 
@@ -372,19 +419,19 @@ export class MazeScene {
   }
 
   private createMaze() {
-    const mazeGen = new MazeGenerator(8);
+    const mazeGen = new MazeGenerator(this.mazeSize);
     const { grid: maze, centerDeadEnd, farthestDeadEnd } = mazeGen.generate();
     this.maze = maze;
 
     // Store the farthest dead end position for win condition checking
     this.farthestDeadEndTile = new THREE.Vector3(
-      farthestDeadEnd.x * 2 - 7,
+      farthestDeadEnd.x * 2 - (this.mazeSize - 1),
       0,
-      farthestDeadEnd.y * 2 - 7
+      farthestDeadEnd.y * 2 - (this.mazeSize - 1)
     );
 
     // Create base floor
-    const floorGeometry = new THREE.PlaneGeometry(16, 16);
+    const floorGeometry = new THREE.PlaneGeometry(this.mazeSize * 2, this.mazeSize * 2);
     const floorMaterial = new THREE.MeshPhongMaterial({ 
       color: 0xCCCCCC,
       map: this.floorTexture
@@ -401,8 +448,8 @@ export class MazeScene {
     
     maze.forEach((row, x) => {
       row.forEach((cell, y) => {
-        const worldX = x * 2 - 7;
-        const worldZ = y * 2 - 7;
+        const worldX = x * 2 - (this.mazeSize - 1);
+        const worldZ = y * 2 - (this.mazeSize - 1);
 
         // Count number of walls to identify dead ends
         const wallCount = Object.values(cell.walls).filter(wall => wall).length;
@@ -445,8 +492,8 @@ export class MazeScene {
     });
 
     // Get the world coordinates of the blue tile (center dead end)
-    const centerX = centerDeadEnd.x * 2 - 7;
-    const centerZ = centerDeadEnd.y * 2 - 7;
+    const centerX = centerDeadEnd.x * 2 - (this.mazeSize - 1);
+    const centerZ = centerDeadEnd.y * 2 - (this.mazeSize - 1);
 
     // Create pyramids based on selected mode
     switch (this.pyramidPlacementMode) {
@@ -513,6 +560,7 @@ export class MazeScene {
         isNorthSouth ? 1 : 0.05,
         0.5
       );
+      wallMaterial.map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
       wallMaterial.needsUpdate = true;
     }
     
@@ -601,13 +649,14 @@ export class MazeScene {
         this.currentRotation = this.rotationStartAngle + 
           (this.targetRotation - this.rotationStartAngle) * progress;
         this.mainCamera.rotation.y = this.currentRotation;
-        this.updateCompassDirection(this.currentRotation);
+        // Only update position indicator during rotation, not compass
         this.updatePositionIndicator();
       } else {
         // Animation complete
         this.isRotating = false;
         this.currentRotation = this.targetRotation;
         this.mainCamera.rotation.y = this.currentRotation;
+        // Update both compass and position indicator only when rotation is complete
         this.updateCompassDirection(this.currentRotation);
         this.updatePositionIndicator();
       }
@@ -716,11 +765,11 @@ export class MazeScene {
 
   private canMove(newPosition: THREE.Vector3, direction: 'north' | 'south' | 'east' | 'west'): boolean {
     // Convert world position to grid coordinates
-    const gridX = Math.round((this.currentPosition.x + 7) / 2);
-    const gridZ = Math.round((this.currentPosition.z + 7) / 2);
+    const gridX = Math.round((this.currentPosition.x + (this.mazeSize - 1)) / 2);
+    const gridZ = Math.round((this.currentPosition.z + (this.mazeSize - 1)) / 2);
     
     // Check if current position is within bounds
-    if (gridX < 0 || gridX >= 8 || gridZ < 0 || gridZ >= 8) {
+    if (gridX < 0 || gridX >= this.mazeSize || gridZ < 0 || gridZ >= this.mazeSize) {
         return false;
     }
 
@@ -855,12 +904,12 @@ export class MazeScene {
     if (!this.farthestDeadEndTile) return;
 
     // Convert current position to grid coordinates
-    const currentGridX = Math.round((this.currentPosition.x + 7) / 2);
-    const currentGridZ = Math.round((this.currentPosition.z + 7) / 2);
+    const currentGridX = Math.round((this.currentPosition.x + (this.mazeSize - 1)) / 2);
+    const currentGridZ = Math.round((this.currentPosition.z + (this.mazeSize - 1)) / 2);
 
     // Convert farthest dead end to grid coordinates
-    const targetGridX = Math.round((this.farthestDeadEndTile.x + 7) / 2);
-    const targetGridZ = Math.round((this.farthestDeadEndTile.z + 7) / 2);
+    const targetGridX = Math.round((this.farthestDeadEndTile.x + (this.mazeSize - 1)) / 2);
+    const targetGridZ = Math.round((this.farthestDeadEndTile.z + (this.mazeSize - 1)) / 2);
 
     // Check if player has reached the green tile
     if (currentGridX === targetGridX && currentGridZ === targetGridZ) {
@@ -880,5 +929,19 @@ export class MazeScene {
 
   private updateScoreDisplay() {
     this.scoreDisplay.textContent = `Score: ${this.score}`;
+  }
+
+  public onTexturesLoaded(callback: () => void) {
+    this.texturesLoadedCallback = callback;
+    // Check if textures are already loaded
+    if (this.wallTextureLoaded && this.floorTextureLoaded) {
+      callback();
+    }
+  }
+
+  private checkTexturesLoaded() {
+    if (this.wallTextureLoaded && this.floorTextureLoaded && this.texturesLoadedCallback) {
+      this.texturesLoadedCallback();
+    }
   }
 } 

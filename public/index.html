@@ -141,6 +141,42 @@
             font-size: 1.5em;
             margin-bottom: 2em;
         }
+
+        /* Loading Screen Styles */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-text {
+            color: white;
+            font-size: 2em;
+            margin-bottom: 1em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -148,19 +184,24 @@
         <h1 class="title">3D Maze Game</h1>
         
         <label for="wallTexture" class="texture-label">
-            Upload Wall Texture
-            <input type="file" id="wallTexture" class="texture-upload" accept="image/png">
+            Upload Wall Texture (Any Size)
+            <input type="file" id="wallTexture" class="texture-upload" accept="image/*">
         </label>
         
         <label for="floorTexture" class="texture-label">
-            Upload Floor Texture
-            <input type="file" id="floorTexture" class="texture-upload" accept="image/png">
+            Upload Floor Texture (Any Size)
+            <input type="file" id="floorTexture" class="texture-upload" accept="image/*">
         </label>
 
         <select id="pyramidMode" class="menu-button" style="background: #6c757d; text-align: center;">
             <option value="closest">Pyramid on Closest Red Tile</option>
             <option value="random">Pyramid on Random Red Tile</option>
             <option value="all">Pyramids on All Red Tiles</option>
+        </select>
+
+        <select id="mazeSize" class="menu-button" style="background: #6c757d; text-align: center;">
+            <option value="8">Default Size (8x8)</option>
+            <option value="16">Large Size (16x16)</option>
         </select>
         
         <button id="startButton" class="menu-button">Start Game</button>
@@ -172,6 +213,11 @@
         <h1 class="game-over-title">Congratulations!</h1>
         <p class="game-over-text">You've successfully escaped the maze!</p>
         <button id="restartButton" class="menu-button">Play Again</button>
+    </div>
+
+    <div id="loadingScreen">
+        <h2 class="loading-text">Loading Maze...</h2>
+        <div class="loading-spinner"></div>
     </div>
 </body>
 </html> 
