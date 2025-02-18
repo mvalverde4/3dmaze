@@ -99,7 +99,15 @@ function showRestartScreen() {
 }
 
 // Initialize the game
-export function initGame(pyramidMode: PyramidPlacementMode, wallTexture?: string, floorTexture?: string, mazeSize: number = 8) {
+export function initGame(
+    pyramidMode: PyramidPlacementMode, 
+    wallTexture?: string, 
+    floorTexture?: string, 
+    mazeSize: number = 8, 
+    isTimedMode: boolean = false,
+    initialTime: number = 60,
+    timeBonus: number = 10
+) {
     const titleScreen = document.getElementById('titleScreen');
     const gameContainer = document.getElementById('game');
     const loadingScreen = document.getElementById('loadingScreen');
@@ -116,7 +124,7 @@ export function initGame(pyramidMode: PyramidPlacementMode, wallTexture?: string
     currentFloorTexture = floorTexture;
 
     // Create new maze scene
-    mazeScene = new MazeScene(pyramidMode, wallTexture, floorTexture, mazeSize);
+    mazeScene = new MazeScene(pyramidMode, wallTexture, floorTexture, mazeSize, isTimedMode, initialTime, timeBonus);
 
     // Wait for textures to load
     mazeScene.onTexturesLoaded(() => {
@@ -139,9 +147,12 @@ export function restartGame() {
 // Set up event listeners
 document.addEventListener('DOMContentLoaded', () => {
     const startButton = document.getElementById('startButton');
+    const startTimedButton = document.getElementById('startTimedButton');
+    const startTimedLongButton = document.getElementById('startTimedLongButton');
+    const pyramidModeSelect = document.getElementById('pyramidMode') as HTMLSelectElement;
+    const mazeSizeSelect = document.getElementById('mazeSize') as HTMLSelectElement;
     const wallTextureInput = document.getElementById('wallTexture') as HTMLInputElement;
     const floorTextureInput = document.getElementById('floorTexture') as HTMLInputElement;
-    const pyramidModeSelect = document.getElementById('pyramidMode') as HTMLSelectElement;
 
     let customWallTexture: string | undefined;
     let customFloorTexture: string | undefined;
@@ -186,12 +197,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Handle start button click
+    // Handle regular start button click
     startButton?.addEventListener('click', () => {
         const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
-        const mazeSizeSelect = document.getElementById('mazeSize') as HTMLSelectElement;
         const selectedSize = parseInt(mazeSizeSelect.value);
-        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize);
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false);
+    });
+
+    // Handle 60s timed game button click
+    startTimedButton?.addEventListener('click', () => {
+        const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
+        const selectedSize = parseInt(mazeSizeSelect.value);
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10);
+    });
+
+    // Handle 120s timed game button click
+    startTimedLongButton?.addEventListener('click', () => {
+        const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
+        const selectedSize = parseInt(mazeSizeSelect.value);
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30);
     });
 
     // Add restart button event listener

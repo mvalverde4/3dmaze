@@ -28,6 +28,12 @@ export class MazeScene {
   private texturesLoadedCallback: (() => void) | null = null;
   private wallTextureLoaded: boolean = false;
   private floorTextureLoaded: boolean = false;
+  private isTimedMode: boolean = false;
+  private timeRemaining: number = 60;
+  private timeBonus: number = 10;
+  private timerDisplay!: HTMLDivElement;
+  private timerInterval: NodeJS.Timeout | null = null;
+  private scoreDisplay!: HTMLDivElement;
 
   // Initialize properties with default values
   private currentPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -52,33 +58,53 @@ export class MazeScene {
   private rotationStartAngle: number = 0;
   private readonly ROTATION_DURATION: number = 300; // Duration in milliseconds
   private score: number = 0;
-  private scoreDisplay: HTMLDivElement;
 
-  constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string, mazeSize: number = 8) {
+  constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string, mazeSize: number = 8, isTimedMode: boolean = false, initialTime: number = 60, timeBonus: number = 10) {
     this.pyramidPlacementMode = pyramidMode;
     this.customWallTexture = wallTexture;
     this.customFloorTexture = floorTexture;
     this.mazeSize = mazeSize;
+    this.isTimedMode = isTimedMode;
+    this.timeRemaining = initialTime;
+    this.timeBonus = timeBonus;
     
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
     this.textureLoader = new THREE.TextureLoader();
     
-    // Create score display
-    this.scoreDisplay = document.createElement('div');
-    this.scoreDisplay.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 10px 20px;
-      background-color: rgba(255, 255, 255, 0.7);
-      border-radius: 10px;
-      font-size: 24px;
-      font-weight: bold;
-      z-index: 1000;
-    `;
-    this.updateScoreDisplay();
-    document.body.appendChild(this.scoreDisplay);
+    // Create score display or timer display
+    if (this.isTimedMode) {
+      this.timerDisplay = document.createElement('div');
+      this.timerDisplay.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background-color: rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+        font-size: 24px;
+        font-weight: bold;
+        z-index: 1000;
+      `;
+      this.updateTimerDisplay();
+      document.body.appendChild(this.timerDisplay);
+      this.startTimer();
+    } else {
+      this.scoreDisplay = document.createElement('div');
+      this.scoreDisplay.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background-color: rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+        font-size: 24px;
+        font-weight: bold;
+        z-index: 1000;
+      `;
+      this.updateScoreDisplay();
+      document.body.appendChild(this.scoreDisplay);
+    }
     
     // Load textures
     this.loadTextures();
@@ -98,12 +124,15 @@ export class MazeScene {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(this.renderer.domElement);
     
-    const ambientLight = new THREE.AmbientLight(0x808080, 1.0);
+    // Update lighting for better visibility
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambientLight);
     
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
-    directionalLight.position.set(0, 10, 0);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 8, 5);
+    directionalLight.target.position.set(0, 0, 0);
     this.scene.add(directionalLight);
+    this.scene.add(directionalLight.target);
 
     // Create control buttons
     this.createControlButtons();
@@ -328,7 +357,7 @@ export class MazeScene {
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         const material = object.material as THREE.MeshPhongMaterial;
-        if (material.color.getHex() === 0x808080) {
+        if (material.color.getHex() === 0xffffff && object.geometry instanceof THREE.BoxGeometry) {
           wallCount++;
           material.map = this.wallTexture;
           material.needsUpdate = true;
@@ -348,7 +377,7 @@ export class MazeScene {
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         const material = object.material as THREE.MeshPhongMaterial;
-        if (material.color.getHex() === 0xCCCCCC) {
+        if (material.color.getHex() === 0xffffff && object.geometry instanceof THREE.PlaneGeometry) {
           floorCount++;
           material.map = this.floorTexture;
           material.needsUpdate = true;
@@ -433,8 +462,9 @@ export class MazeScene {
     // Create base floor
     const floorGeometry = new THREE.PlaneGeometry(this.mazeSize * 2, this.mazeSize * 2);
     const floorMaterial = new THREE.MeshPhongMaterial({ 
-      color: 0xCCCCCC,
-      map: this.floorTexture
+      color: 0xffffff,
+      map: this.floorTexture,
+      shininess: 0
     });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
@@ -542,31 +572,48 @@ export class MazeScene {
   }
 
   private createWall(x: number, z: number, isNorthSouth: boolean) {
-    const wallGeometry = new THREE.BoxGeometry(
+    // Create the main wall geometry for the wide portion
+    const mainWallGeometry = new THREE.BoxGeometry(
       isNorthSouth ? 2 : 0.1,
-      1,
+      0.8, // Slightly shorter to leave room for the top
       isNorthSouth ? 0.1 : 2
     );
-    const wallMaterial = new THREE.MeshPhongMaterial({ 
-      color: 0x808080,
-      map: this.wallTexture ? this.wallTexture.clone() : null
+    const mainWallMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0xffffff,
+      map: this.wallTexture ? this.wallTexture.clone() : null,
+      shininess: 0
     });
     
     // Set texture repeat based on wall orientation
-    if (wallMaterial.map) {
-      wallMaterial.map.wrapS = THREE.RepeatWrapping;
-      wallMaterial.map.wrapT = THREE.RepeatWrapping;
-      wallMaterial.map.repeat.set(
+    if (mainWallMaterial.map) {
+      mainWallMaterial.map.wrapS = THREE.RepeatWrapping;
+      mainWallMaterial.map.wrapT = THREE.RepeatWrapping;
+      mainWallMaterial.map.repeat.set(
         isNorthSouth ? 1 : 0.05,
-        0.5
+        0.4 // Adjusted for the shorter height
       );
-      wallMaterial.map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-      wallMaterial.needsUpdate = true;
+      mainWallMaterial.map.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+      mainWallMaterial.needsUpdate = true;
     }
     
-    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-    wall.position.set(x, 0.5, z);
-    this.scene.add(wall);
+    const mainWall = new THREE.Mesh(mainWallGeometry, mainWallMaterial);
+    mainWall.position.set(x, 0.4, z); // Position lower to accommodate top portion
+    this.scene.add(mainWall);
+
+    // Create the top portion with solid black material
+    const topWallGeometry = new THREE.BoxGeometry(
+      isNorthSouth ? 2 : 0.1,
+      0.2, // Top portion height
+      isNorthSouth ? 0.1 : 2
+    );
+    const topWallMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x000000,
+      shininess: 0
+    });
+    
+    const topWall = new THREE.Mesh(topWallGeometry, topWallMaterial);
+    topWall.position.set(x, 0.9, z); // Position at the top
+    this.scene.add(topWall);
   }
 
   private createPyramid(x: number, z: number) {
@@ -703,14 +750,21 @@ export class MazeScene {
       }
     });
 
-    // Remove collided pyramids and update score
+    // Remove collided pyramids and update score or timer
     pyramidsToRemove.forEach(pyramid => {
       const index = this.pyramids.indexOf(pyramid);
       if (index > -1) {
         this.pyramids.splice(index, 1);
         this.scene.remove(pyramid);
-        this.score++;
-        this.updateScoreDisplay();
+        
+        if (this.isTimedMode) {
+          // Add time bonus to the timer
+          this.timeRemaining += this.timeBonus;
+          this.updateTimerDisplay();
+        } else {
+          this.score++;
+          this.updateScoreDisplay();
+        }
       }
     });
   }
@@ -724,8 +778,17 @@ export class MazeScene {
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('keydown', this.handleKeyDown);
     
-    // Remove score display
-    document.body.removeChild(this.scoreDisplay);
+    // Clear timer interval if it exists
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+    
+    if (this.isTimedMode) {
+      document.body.removeChild(this.timerDisplay);
+    } else {
+      document.body.removeChild(this.scoreDisplay);
+    }
     
     this.scene.traverse((object: THREE.Object3D) => {
       if (object instanceof THREE.Mesh) {
@@ -765,24 +828,41 @@ export class MazeScene {
 
   private canMove(newPosition: THREE.Vector3, direction: 'north' | 'south' | 'east' | 'west'): boolean {
     // Convert world position to grid coordinates
+    // Use mazeSize to properly scale the conversion
     const gridX = Math.round((this.currentPosition.x + (this.mazeSize - 1)) / 2);
     const gridZ = Math.round((this.currentPosition.z + (this.mazeSize - 1)) / 2);
     
     // Check if current position is within bounds
     if (gridX < 0 || gridX >= this.mazeSize || gridZ < 0 || gridZ >= this.mazeSize) {
+        console.log('Out of bounds:', { gridX, gridZ, mazeSize: this.mazeSize });
         return false;
     }
 
     // Get current cell
     const currentCell = this.maze[gridX][gridZ];
+    if (!currentCell) {
+        console.log('No cell found at:', { gridX, gridZ });
+        return false;
+    }
 
     // Check if there's a wall in the movement direction
-    switch (direction) {
-        case 'north': return !currentCell.walls.north;
-        case 'south': return !currentCell.walls.south;
-        case 'east': return !currentCell.walls.east;
-        case 'west': return !currentCell.walls.west;
-    }
+    const result = {
+        north: !currentCell.walls.north,
+        south: !currentCell.walls.south,
+        east: !currentCell.walls.east,
+        west: !currentCell.walls.west
+    }[direction];
+
+    // Debug log the movement attempt
+    console.log('Movement check:', {
+        direction,
+        gridX,
+        gridZ,
+        walls: currentCell.walls,
+        canMove: result
+    });
+
+    return result;
   }
 
   private startMovement(newPosition: THREE.Vector3) {
@@ -800,11 +880,12 @@ export class MazeScene {
 
     const normalizedRotation = ((this.currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
     const newPosition = this.currentPosition.clone();
-    const moveDistance = 2;
+    const moveDistance = 2; // Distance between cells in world coordinates
 
-    let direction: 'north' | 'south' | 'east' | 'west';
+    let direction: 'north' | 'south' | 'east' | 'west' = 'north'; // Initialize with default
     let canMove = false;
     
+    // Determine direction based on camera rotation
     if (Math.abs(normalizedRotation - 0) < 0.1) {
         direction = 'north';
         if (this.canMove(newPosition, direction)) {
@@ -832,6 +913,12 @@ export class MazeScene {
     }
 
     if (canMove) {
+        // Debug log the movement
+        console.log('Moving forward:', {
+            from: this.currentPosition.clone(),
+            to: newPosition.clone(),
+            direction
+        });
         this.startMovement(newPosition);
     }
   }
@@ -841,11 +928,12 @@ export class MazeScene {
 
     const normalizedRotation = ((this.currentRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
     const newPosition = this.currentPosition.clone();
-    const moveDistance = 2;
+    const moveDistance = 2; // Distance between cells in world coordinates
 
-    let direction: 'north' | 'south' | 'east' | 'west';
+    let direction: 'north' | 'south' | 'east' | 'west' = 'south'; // Initialize with default
     let canMove = false;
     
+    // Determine direction based on camera rotation (opposite of forward movement)
     if (Math.abs(normalizedRotation - 0) < 0.1) {
         direction = 'south';
         if (this.canMove(newPosition, direction)) {
@@ -873,6 +961,12 @@ export class MazeScene {
     }
 
     if (canMove) {
+        // Debug log the movement
+        console.log('Moving backward:', {
+            from: this.currentPosition.clone(),
+            to: newPosition.clone(),
+            direction
+        });
         this.startMovement(newPosition);
     }
   }
@@ -913,6 +1007,11 @@ export class MazeScene {
 
     // Check if player has reached the green tile
     if (currentGridX === targetGridX && currentGridZ === targetGridZ) {
+      // Stop the timer if in timed mode
+      if (this.isTimedMode && this.timerInterval) {
+        clearInterval(this.timerInterval);
+      }
+      
       // Show game over screen
       const gameOverScreen = document.getElementById('gameOverScreen');
       if (gameOverScreen) {
@@ -942,6 +1041,39 @@ export class MazeScene {
   private checkTexturesLoaded() {
     if (this.wallTextureLoaded && this.floorTextureLoaded && this.texturesLoadedCallback) {
       this.texturesLoadedCallback();
+    }
+  }
+
+  private startTimer() {
+    this.timerInterval = setInterval(() => {
+      this.timeRemaining--;
+      this.updateTimerDisplay();
+      
+      if (this.timeRemaining <= 0) {
+        this.handleTimeUp();
+      }
+    }, 1000);
+  }
+
+  private updateTimerDisplay() {
+    this.timerDisplay.textContent = `Time: ${this.timeRemaining}s`;
+  }
+
+  private handleTimeUp() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+    }
+    
+    // Show game over screen
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    if (gameOverScreen) {
+      gameOverScreen.style.display = 'flex';
+    }
+    
+    // Stop the animation loop
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
   }
 } 
