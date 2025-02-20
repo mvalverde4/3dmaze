@@ -177,6 +177,20 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        #pyramidCollectScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -215,6 +229,12 @@
         <h1 class="game-over-title">Congratulations!</h1>
         <p class="game-over-text">You've successfully escaped the maze!</p>
         <button id="restartButton" class="menu-button">Play Again</button>
+    </div>
+
+    <div id="pyramidCollectScreen" style="display: none;">
+        <div class="game-over-title">Pyramid Collected!</div>
+        <p class="game-over-text">You found a mystical pyramid. Keep exploring to find more!</p>
+        <button id="continueButton" class="menu-button">Continue</button>
     </div>
 
     <div id="loadingScreen">

@@ -59,6 +59,8 @@ export class MazeScene {
   private readonly ROTATION_DURATION: number = 300; // Duration in milliseconds
   private score: number = 0;
 
+  private timerPaused: boolean = false;
+
   constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string, mazeSize: number = 8, isTimedMode: boolean = false, initialTime: number = 60, timeBonus: number = 10) {
     this.pyramidPlacementMode = pyramidMode;
     this.customWallTexture = wallTexture;
@@ -388,15 +390,24 @@ export class MazeScene {
   }
 
   private findClosestRedTile(redTilePositions: { x: number, z: number }[], centerX: number, centerZ: number): { x: number, z: number } | null {
-    // Convert world coordinates to grid coordinates
-    const startGridX = Math.round((centerX + 7) / 2);
-    const startGridZ = Math.round((centerZ + 7) / 2);
+    // Convert world coordinates to grid coordinates using mazeSize
+    const startGridX = Math.round((centerX + (this.mazeSize - 1)) / 2);
+    const startGridZ = Math.round((centerZ + (this.mazeSize - 1)) / 2);
     
     // Convert red tile positions to grid coordinates
     const redTileGridPositions = redTilePositions.map(pos => ({
-      x: Math.round((pos.x + 7) / 2),
-      z: Math.round((pos.z + 7) / 2)
+      x: Math.round((pos.x + (this.mazeSize - 1)) / 2),
+      z: Math.round((pos.z + (this.mazeSize - 1)) / 2)
     }));
+
+    // Debug log coordinate conversions
+    console.log('Finding closest red tile:', {
+        centerWorld: { x: centerX, z: centerZ },
+        centerGrid: { x: startGridX, z: startGridZ },
+        redTilePositions,
+        redTileGridPositions,
+        mazeSize: this.mazeSize
+    });
 
     // Queue for BFS: [x, z, distance]
     const queue: [number, number, number][] = [[startGridX, startGridZ, 0]];
@@ -413,10 +424,19 @@ export class MazeScene {
       const isRedTile = redTileGridPositions.some(pos => pos.x === currentX && pos.z === currentZ);
       if (isRedTile && distance < shortestDistance) {
         shortestDistance = distance;
+        // Convert back to world coordinates using mazeSize
         closestRedTile = {
-          x: currentX * 2 - 7, // Convert back to world coordinates
-          z: currentZ * 2 - 7
+          x: currentX * 2 - (this.mazeSize - 1),
+          z: currentZ * 2 - (this.mazeSize - 1)
         };
+
+        // Debug log when red tile found
+        console.log('Found red tile:', {
+            gridPosition: { x: currentX, z: currentZ },
+            worldPosition: closestRedTile,
+            distance,
+            mazeSize: this.mazeSize
+        });
       }
 
       // Get current cell
@@ -436,7 +456,7 @@ export class MazeScene {
         const key = `${nextX},${nextZ}`;
 
         // Check if the next position is valid and not visited
-        if (nextX >= 0 && nextX < 8 && nextZ >= 0 && nextZ < 8 &&
+        if (nextX >= 0 && nextX < this.mazeSize && nextZ >= 0 && nextZ < this.mazeSize &&
             !visited.has(key) && !cell.walls[wall as keyof Cell['walls']]) {
           queue.push([nextX, nextZ, distance + 1]);
           visited.add(key);
@@ -459,6 +479,14 @@ export class MazeScene {
       farthestDeadEnd.y * 2 - (this.mazeSize - 1)
     );
 
+    // Debug log maze initialization
+    console.log('Maze initialization:', {
+        mazeSize: this.mazeSize,
+        centerDeadEnd,
+        farthestDeadEnd,
+        farthestDeadEndTileWorld: this.farthestDeadEndTile
+    });
+
     // Create base floor
     const floorGeometry = new THREE.PlaneGeometry(this.mazeSize * 2, this.mazeSize * 2);
     const floorMaterial = new THREE.MeshPhongMaterial({ 
@@ -478,8 +506,18 @@ export class MazeScene {
     
     maze.forEach((row, x) => {
       row.forEach((cell, y) => {
+        // Convert grid coordinates to world coordinates
         const worldX = x * 2 - (this.mazeSize - 1);
         const worldZ = y * 2 - (this.mazeSize - 1);
+
+        // Debug log coordinate conversion for each cell
+        console.log('Cell coordinate conversion:', {
+            gridX: x,
+            gridY: y,
+            worldX,
+            worldZ,
+            mazeSize: this.mazeSize
+        });
 
         // Count number of walls to identify dead ends
         const wallCount = Object.values(cell.walls).filter(wall => wall).length;
@@ -524,6 +562,14 @@ export class MazeScene {
     // Get the world coordinates of the blue tile (center dead end)
     const centerX = centerDeadEnd.x * 2 - (this.mazeSize - 1);
     const centerZ = centerDeadEnd.y * 2 - (this.mazeSize - 1);
+
+    // Debug log starting position
+    console.log('Starting position:', {
+        centerDeadEnd,
+        centerX,
+        centerZ,
+        mazeSize: this.mazeSize
+    });
 
     // Create pyramids based on selected mode
     switch (this.pyramidPlacementMode) {
@@ -744,28 +790,66 @@ export class MazeScene {
 
     // Check each pyramid for collision with the camera
     this.pyramids.forEach(pyramid => {
-      const distance = this.currentPosition.distanceTo(pyramid.position);
-      if (distance < collisionDistance) {
-        pyramidsToRemove.push(pyramid);
-      }
+        const distance = this.currentPosition.distanceTo(pyramid.position);
+        if (distance < collisionDistance) {
+            pyramidsToRemove.push(pyramid);
+        }
     });
 
     // Remove collided pyramids and update score or timer
     pyramidsToRemove.forEach(pyramid => {
-      const index = this.pyramids.indexOf(pyramid);
-      if (index > -1) {
-        this.pyramids.splice(index, 1);
-        this.scene.remove(pyramid);
-        
-        if (this.isTimedMode) {
-          // Add time bonus to the timer
-          this.timeRemaining += this.timeBonus;
-          this.updateTimerDisplay();
-        } else {
-          this.score++;
-          this.updateScoreDisplay();
+        const index = this.pyramids.indexOf(pyramid);
+        if (index > -1) {
+            this.pyramids.splice(index, 1);
+            this.scene.remove(pyramid);
+            
+            // Pause the game and show collection screen
+            if (this.animationFrameId !== null) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+
+            // Pause timer if in timed mode
+            if (this.isTimedMode) {
+                this.timerPaused = true;
+            }
+
+            // Show pyramid collection screen
+            const pyramidCollectScreen = document.getElementById('pyramidCollectScreen');
+            if (pyramidCollectScreen) {
+                pyramidCollectScreen.style.display = 'flex';
+                
+                // Add continue button listener
+                const continueButton = document.getElementById('continueButton');
+                if (continueButton) {
+                    const resumeGame = () => {
+                        pyramidCollectScreen.style.display = 'none';
+                        
+                        // Resume timer if in timed mode
+                        if (this.isTimedMode) {
+                            this.timerPaused = false;
+                        }
+                        
+                        // Update score or add time bonus
+                        if (this.isTimedMode) {
+                            this.timeRemaining += this.timeBonus;
+                            this.updateTimerDisplay();
+                        } else {
+                            this.score++;
+                            this.updateScoreDisplay();
+                        }
+                        
+                        // Resume animation
+                        this.animate();
+                        
+                        // Remove the event listener
+                        continueButton.removeEventListener('click', resumeGame);
+                    };
+                    
+                    continueButton.addEventListener('click', resumeGame);
+                }
+            }
         }
-      }
     });
   }
 
@@ -827,10 +911,18 @@ export class MazeScene {
   }
 
   private canMove(newPosition: THREE.Vector3, direction: 'north' | 'south' | 'east' | 'west'): boolean {
-    // Convert world position to grid coordinates
-    // Use mazeSize to properly scale the conversion
+    // Convert world position to grid coordinates using mazeSize for proper scaling
     const gridX = Math.round((this.currentPosition.x + (this.mazeSize - 1)) / 2);
     const gridZ = Math.round((this.currentPosition.z + (this.mazeSize - 1)) / 2);
+    
+    // Add debug logging for coordinate conversion
+    console.log('Coordinate conversion:', {
+        worldX: this.currentPosition.x,
+        worldZ: this.currentPosition.z,
+        gridX,
+        gridZ,
+        mazeSize: this.mazeSize
+    });
     
     // Check if current position is within bounds
     if (gridX < 0 || gridX >= this.mazeSize || gridZ < 0 || gridZ >= this.mazeSize) {
@@ -859,7 +951,8 @@ export class MazeScene {
         gridX,
         gridZ,
         walls: currentCell.walls,
-        canMove: result
+        canMove: result,
+        currentCell
     });
 
     return result;
@@ -884,6 +977,13 @@ export class MazeScene {
 
     let direction: 'north' | 'south' | 'east' | 'west' = 'north'; // Initialize with default
     let canMove = false;
+    
+    // Debug log current state
+    console.log('Move forward attempt:', {
+        currentRotation: this.currentRotation,
+        normalizedRotation,
+        currentPosition: this.currentPosition.clone()
+    });
     
     // Determine direction based on camera rotation
     if (Math.abs(normalizedRotation - 0) < 0.1) {
@@ -917,7 +1017,8 @@ export class MazeScene {
         console.log('Moving forward:', {
             from: this.currentPosition.clone(),
             to: newPosition.clone(),
-            direction
+            direction,
+            mazeSize: this.mazeSize
         });
         this.startMovement(newPosition);
     }
@@ -932,6 +1033,13 @@ export class MazeScene {
 
     let direction: 'north' | 'south' | 'east' | 'west' = 'south'; // Initialize with default
     let canMove = false;
+    
+    // Debug log current state
+    console.log('Move backward attempt:', {
+        currentRotation: this.currentRotation,
+        normalizedRotation,
+        currentPosition: this.currentPosition.clone()
+    });
     
     // Determine direction based on camera rotation (opposite of forward movement)
     if (Math.abs(normalizedRotation - 0) < 0.1) {
@@ -965,7 +1073,8 @@ export class MazeScene {
         console.log('Moving backward:', {
             from: this.currentPosition.clone(),
             to: newPosition.clone(),
-            direction
+            direction,
+            mazeSize: this.mazeSize
         });
         this.startMovement(newPosition);
     }
@@ -1046,12 +1155,14 @@ export class MazeScene {
 
   private startTimer() {
     this.timerInterval = setInterval(() => {
-      this.timeRemaining--;
-      this.updateTimerDisplay();
-      
-      if (this.timeRemaining <= 0) {
-        this.handleTimeUp();
-      }
+        if (!this.timerPaused) {
+            this.timeRemaining--;
+            this.updateTimerDisplay();
+            
+            if (this.timeRemaining <= 0) {
+                this.handleTimeUp();
+            }
+        }
     }, 1000);
   }
 

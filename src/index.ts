@@ -4,6 +4,8 @@ let mazeScene: MazeScene | null = null;
 let currentPyramidMode: PyramidPlacementMode;
 let currentWallTexture: string | undefined;
 let currentFloorTexture: string | undefined;
+let customWallTexture: string | undefined;
+let customFloorTexture: string | undefined;
 
 // Function to handle custom texture uploads
 function handleTextureUpload(file: File, textureType: 'wall' | 'floor'): Promise<string> {
@@ -66,10 +68,30 @@ function showRestartScreen() {
         titleScreen.style.display = 'flex';
         gameContainer.style.display = 'none';
 
-        // Clear the title screen content
+        // Reset texture upload labels
+        const wallTextureLabel = document.querySelector('label[for="wallTexture"]');
+        const floorTextureLabel = document.querySelector('label[for="floorTexture"]');
+        if (wallTextureLabel) wallTextureLabel.textContent = 'Upload Wall Texture (Any Size)';
+        if (floorTextureLabel) floorTextureLabel.textContent = 'Upload Floor Texture (Any Size)';
+
+        // Clear custom textures
+        customWallTexture = undefined;
+        customFloorTexture = undefined;
+
+        // Clear the title screen content and recreate it
         titleScreen.innerHTML = `
             <h1 class="title">3D Maze Game</h1>
             
+            <label for="wallTexture" class="texture-label">
+                Upload Wall Texture (Any Size)
+                <input type="file" id="wallTexture" class="texture-upload" accept="image/*">
+            </label>
+            
+            <label for="floorTexture" class="texture-label">
+                Upload Floor Texture (Any Size)
+                <input type="file" id="floorTexture" class="texture-upload" accept="image/*">
+            </label>
+
             <select id="pyramidMode" class="menu-button" style="background: #6c757d; text-align: center;">
                 <option value="closest">Pyramid on Closest Red Tile</option>
                 <option value="random">Pyramid on Random Red Tile</option>
@@ -81,19 +103,79 @@ function showRestartScreen() {
                 <option value="16">Large Size (16x16)</option>
             </select>
             
-            <button id="startButton" class="menu-button">Start New Game</button>
+            <button id="startTimedLongButton" class="menu-button" style="background: #dc3545;">Start Long Timed Game (120s)</button>
+            <button id="startTimedButton" class="menu-button" style="background: #dc3545;">Start Timed Game (60s)</button>
+            <button id="startButton" class="menu-button">Start Game</button>
         `;
 
-        // Reattach start button event listener
+        // Reattach all event listeners
         const startButton = document.getElementById('startButton');
+        const startTimedButton = document.getElementById('startTimedButton');
+        const startTimedLongButton = document.getElementById('startTimedLongButton');
         const pyramidModeSelect = document.getElementById('pyramidMode') as HTMLSelectElement;
         const mazeSizeSelect = document.getElementById('mazeSize') as HTMLSelectElement;
+        const wallTextureInput = document.getElementById('wallTexture') as HTMLInputElement;
+        const floorTextureInput = document.getElementById('floorTexture') as HTMLInputElement;
 
+        // Handle wall texture upload
+        wallTextureInput?.addEventListener('change', async (e) => {
+            const input = e.target as HTMLInputElement;
+            if (input.files && input.files[0]) {
+                try {
+                    customWallTexture = await handleTextureUpload(input.files[0], 'wall');
+                    const label = input.parentElement;
+                    if (label) {
+                        label.textContent = '✓ Wall Texture Ready';
+                    }
+                } catch (err) {
+                    if (err instanceof Error) {
+                        alert(err.message);
+                    } else {
+                        alert('An error occurred while uploading the wall texture');
+                    }
+                }
+            }
+        });
+
+        // Handle floor texture upload
+        floorTextureInput?.addEventListener('change', async (e) => {
+            const input = e.target as HTMLInputElement;
+            if (input.files && input.files[0]) {
+                try {
+                    customFloorTexture = await handleTextureUpload(input.files[0], 'floor');
+                    const label = input.parentElement;
+                    if (label) {
+                        label.textContent = '✓ Floor Texture Ready';
+                    }
+                } catch (err) {
+                    if (err instanceof Error) {
+                        alert(err.message);
+                    } else {
+                        alert('An error occurred while uploading the floor texture');
+                    }
+                }
+            }
+        });
+
+        // Handle regular start button click
         startButton?.addEventListener('click', () => {
             const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
             const selectedSize = parseInt(mazeSizeSelect.value);
-            // Use the existing textures for the new game
-            initGame(selectedMode, currentWallTexture, currentFloorTexture, selectedSize);
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false);
+        });
+
+        // Handle 60s timed game button click
+        startTimedButton?.addEventListener('click', () => {
+            const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
+            const selectedSize = parseInt(mazeSizeSelect.value);
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10);
+        });
+
+        // Handle 120s timed game button click
+        startTimedLongButton?.addEventListener('click', () => {
+            const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
+            const selectedSize = parseInt(mazeSizeSelect.value);
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30);
         });
     }
 }
@@ -153,9 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mazeSizeSelect = document.getElementById('mazeSize') as HTMLSelectElement;
     const wallTextureInput = document.getElementById('wallTexture') as HTMLInputElement;
     const floorTextureInput = document.getElementById('floorTexture') as HTMLInputElement;
-
-    let customWallTexture: string | undefined;
-    let customFloorTexture: string | undefined;
 
     // Handle wall texture upload
     wallTextureInput?.addEventListener('change', async (e) => {
