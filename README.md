@@ -1,6 +1,6 @@
 # 3D Maze Game
 
-A browser-based 3D maze game built with Three.js and TypeScript. Navigate through procedurally generated mazes in first-person view with an overhead mini-map for assistance.
+A browser-based 3D maze game built with Three.js and TypeScript. Navigate through procedurally generated mazes in first-person view with an overhead mini-map for assistance. Find the pyramid(s) to win!
 
 ## Technologies Used
 
@@ -53,6 +53,23 @@ This will create an optimized production build in the `dist` directory.
 - Directional pad buttons for movement
 - Rotation buttons for turning left/right
 
+## Game Modes
+
+1. **Classic Mode**
+   - Find the pyramid(s) to win
+   - No time limit
+   - Explore at your own pace
+
+2. **Timed Mode (60s)**
+   - Race against time to find pyramids
+   - Initial time: 60 seconds
+   - Time bonus: +10 seconds per pyramid found
+
+3. **Long Timed Mode (120s)**
+   - Extended timed challenge
+   - Initial time: 120 seconds
+   - Time bonus: +30 seconds per pyramid found
+
 ## Features
 
 1. **First-Person Navigation**
@@ -65,41 +82,38 @@ This will create an optimized production build in the `dist` directory.
    - Player position indicator
    - Real-time position tracking
 
-3. **Compass**
-   - Direction indicator (N/S/E/W)
-   - Updates in real-time with player rotation
+3. **Pyramid Placement Options**
+   - Closest Red Tile: Pyramid appears on the nearest red tile
+   - Random Red Tile: Pyramid appears on a random red tile
+   - All Red Tiles: Pyramids appear on all red tiles
 
-4. **Responsive Design**
+4. **Maze Size Options**
+   - Default Size: 8x8 maze
+   - Large Size: 16x16 maze
+
+5. **Custom Textures**
+   - Upload custom wall textures
+   - Upload custom floor textures
+   - Automatic texture resizing and optimization
+   - Supports any image size (automatically converted to 1024x1024)
+
+6. **Responsive Design**
    - Adapts to different screen sizes
    - Touch controls for mobile devices
    - Fullscreen gameplay
 
 ## Customization
 
-### Movement and Rotation Speed
-To modify the movement and rotation speeds, edit the following values in `src/player.ts`:
-
-```typescript
-private moveSpeed = 0.2;      // Adjust for faster/slower movement
-private rotationSpeed = 0.02;  // Adjust for faster/slower rotation
-```
+### Custom Textures
+The game supports custom texture uploads for both walls and floors. Images will be automatically:
+- Resized to 1024x1024
+- Centered and scaled to maintain aspect ratio
+- Optimized for game performance
 
 ### Maze Size
-The maze size can be modified in `src/scene.ts`. Look for:
-```typescript
-const mazeGen = new MazeGenerator(8);  // Change 8 to desired size
-```
-
-### Camera Settings
-Camera field of view and other properties can be adjusted in `src/scene.ts`:
-```typescript
-this.mainCamera = new THREE.PerspectiveCamera(
-    75,                         // Field of view
-    window.innerWidth/window.innerHeight,  // Aspect ratio
-    0.1,                       // Near plane
-    1000                       // Far plane
-);
-```
+Two preset sizes are available:
+- Default: 8x8 maze
+- Large: 16x16 maze
 
 ## Contributing
 
