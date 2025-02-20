@@ -39,15 +39,17 @@ This will create an optimized production build in the `dist` directory.
 ## Controls
 
 ### Keyboard Controls
-- **Arrow Up / W** - Move forward
-- **Arrow Down / S** - Move backward
-- **Arrow Left / A** - Rotate left
-- **Arrow Right / D** - Rotate right
+- **Arrow Keys** - Move and rotate the camera
+  - Up Arrow - Move forward
+  - Down Arrow - Move backward
+  - Left Arrow - Rotate left
+  - Right Arrow - Rotate right
 
 ### Mouse Controls
 - Click the game window to enable mouse look
 - Move the mouse to look around
 - Mouse movement is locked when in game mode (click to enable)
+- Press ESC to exit mouse look mode
 
 ### Touch Controls (Mobile)
 - Directional pad buttons for movement
@@ -70,6 +72,11 @@ This will create an optimized production build in the `dist` directory.
    - Initial time: 120 seconds
    - Time bonus: +30 seconds per pyramid found
 
+4. **Minimap Visibility**
+   - Always Visible: Traditional gameplay with constant minimap
+   - Unlocked by Pyramid: Minimap is hidden until collecting first pyramid
+   - Compatible with all other game modes and pyramid placement options
+
 ## Features
 
 1. **First-Person Navigation**
@@ -81,6 +88,9 @@ This will create an optimized production build in the `dist` directory.
    - Overhead view of the maze
    - Player position indicator
    - Real-time position tracking
+   - Two visibility modes:
+     - Always visible
+     - Hidden until first pyramid is collected
 
 3. **Pyramid Placement Options**
    - Closest Red Tile: Pyramid appears on the nearest red tile
@@ -114,6 +124,17 @@ The game supports custom texture uploads for both walls and floors. Images will 
 Two preset sizes are available:
 - Default: 8x8 maze
 - Large: 16x16 maze
+
+### Camera Settings
+Camera field of view and other properties can be adjusted in `src/scene.ts`:
+```typescript
+this.mainCamera = new THREE.PerspectiveCamera(
+    75,                         // Field of view
+    window.innerWidth/window.innerHeight,  // Aspect ratio
+    0.1,                       // Near plane
+    1000                       // Far plane
+);
+```
 
 ## Contributing
 

@@ -68,6 +68,10 @@ function showRestartScreen() {
         titleScreen.style.display = 'flex';
         gameContainer.style.display = 'none';
 
+        // Store the current minimap mode value before clearing the screen
+        const currentMinimapSelect = document.getElementById('minimapMode') as HTMLSelectElement;
+        const currentMinimapMode = currentMinimapSelect ? currentMinimapSelect.value : 'always';
+
         // Reset texture upload labels
         const wallTextureLabel = document.querySelector('label[for="wallTexture"]');
         const floorTextureLabel = document.querySelector('label[for="floorTexture"]');
@@ -102,11 +106,22 @@ function showRestartScreen() {
                 <option value="8">Default Size (8x8)</option>
                 <option value="16">Large Size (16x16)</option>
             </select>
+
+            <select id="minimapMode" class="menu-button" style="background: #6c757d; text-align: center;">
+                <option value="always">Minimap Always Visible</option>
+                <option value="pyramid">Minimap Unlocked by Pyramid</option>
+            </select>
             
             <button id="startTimedLongButton" class="menu-button" style="background: #dc3545;">Start Long Timed Game (120s)</button>
             <button id="startTimedButton" class="menu-button" style="background: #dc3545;">Start Timed Game (60s)</button>
             <button id="startButton" class="menu-button">Start Game</button>
         `;
+
+        // Restore the minimap mode selection
+        const newMinimapModeSelect = document.getElementById('minimapMode') as HTMLSelectElement;
+        if (newMinimapModeSelect) {
+            newMinimapModeSelect.value = currentMinimapMode;
+        }
 
         // Reattach all event listeners
         const startButton = document.getElementById('startButton');
@@ -161,21 +176,24 @@ function showRestartScreen() {
         startButton?.addEventListener('click', () => {
             const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
             const selectedSize = parseInt(mazeSizeSelect.value);
-            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false);
+            const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'pyramid';
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false, 60, 10, selectedMinimapMode);
         });
 
         // Handle 60s timed game button click
         startTimedButton?.addEventListener('click', () => {
             const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
             const selectedSize = parseInt(mazeSizeSelect.value);
-            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10);
+            const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'pyramid';
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10, selectedMinimapMode);
         });
 
         // Handle 120s timed game button click
         startTimedLongButton?.addEventListener('click', () => {
             const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
             const selectedSize = parseInt(mazeSizeSelect.value);
-            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30);
+            const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'pyramid';
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30, selectedMinimapMode);
         });
     }
 }
@@ -188,7 +206,8 @@ export function initGame(
     mazeSize: number = 8, 
     isTimedMode: boolean = false,
     initialTime: number = 60,
-    timeBonus: number = 10
+    timeBonus: number = 10,
+    minimapMode: 'always' | 'pyramid' = 'always'
 ) {
     const titleScreen = document.getElementById('titleScreen');
     const gameContainer = document.getElementById('game');
@@ -206,7 +225,7 @@ export function initGame(
     currentFloorTexture = floorTexture;
 
     // Create new maze scene
-    mazeScene = new MazeScene(pyramidMode, wallTexture, floorTexture, mazeSize, isTimedMode, initialTime, timeBonus);
+    mazeScene = new MazeScene(pyramidMode, wallTexture, floorTexture, mazeSize, isTimedMode, initialTime, timeBonus, minimapMode);
 
     // Wait for textures to load
     mazeScene.onTexturesLoaded(() => {
@@ -233,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startTimedLongButton = document.getElementById('startTimedLongButton');
     const pyramidModeSelect = document.getElementById('pyramidMode') as HTMLSelectElement;
     const mazeSizeSelect = document.getElementById('mazeSize') as HTMLSelectElement;
+    const minimapModeSelect = document.getElementById('minimapMode') as HTMLSelectElement;
     const wallTextureInput = document.getElementById('wallTexture') as HTMLInputElement;
     const floorTextureInput = document.getElementById('floorTexture') as HTMLInputElement;
 
@@ -280,21 +300,24 @@ document.addEventListener('DOMContentLoaded', () => {
     startButton?.addEventListener('click', () => {
         const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
         const selectedSize = parseInt(mazeSizeSelect.value);
-        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false);
+        const selectedMinimapMode = minimapModeSelect.value as 'always' | 'pyramid';
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false, 60, 10, selectedMinimapMode);
     });
 
     // Handle 60s timed game button click
     startTimedButton?.addEventListener('click', () => {
         const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
         const selectedSize = parseInt(mazeSizeSelect.value);
-        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10);
+        const selectedMinimapMode = minimapModeSelect.value as 'always' | 'pyramid';
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10, selectedMinimapMode);
     });
 
     // Handle 120s timed game button click
     startTimedLongButton?.addEventListener('click', () => {
         const selectedMode = pyramidModeSelect.value as PyramidPlacementMode;
         const selectedSize = parseInt(mazeSizeSelect.value);
-        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30);
+        const selectedMinimapMode = minimapModeSelect.value as 'always' | 'pyramid';
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30, selectedMinimapMode);
     });
 
     // Add restart button event listener

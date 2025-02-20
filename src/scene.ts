@@ -2,7 +2,16 @@ import * as THREE from 'three';
 import { MazeGenerator, Cell } from './maze';
 
 // Declare the initGame function from index.ts
-declare function initGame(pyramidMode: PyramidPlacementMode, wallTexture?: string, floorTexture?: string): void;
+declare function initGame(
+    pyramidMode: PyramidPlacementMode, 
+    wallTexture?: string, 
+    floorTexture?: string,
+    mazeSize?: number,
+    isTimedMode?: boolean,
+    initialTime?: number,
+    timeBonus?: number,
+    minimapMode?: 'always' | 'pyramid'
+): void;
 
 export enum PyramidPlacementMode {
   ALL_RED_TILES = 'all',
@@ -34,6 +43,8 @@ export class MazeScene {
   private timerDisplay!: HTMLDivElement;
   private timerInterval: NodeJS.Timeout | null = null;
   private scoreDisplay!: HTMLDivElement;
+  private minimapMode: 'always' | 'pyramid';
+  private isMinimapEnabled: boolean;
 
   // Initialize properties with default values
   private currentPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -61,7 +72,16 @@ export class MazeScene {
 
   private timerPaused: boolean = false;
 
-  constructor(pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, wallTexture?: string, floorTexture?: string, mazeSize: number = 8, isTimedMode: boolean = false, initialTime: number = 60, timeBonus: number = 10) {
+  constructor(
+    pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, 
+    wallTexture?: string, 
+    floorTexture?: string, 
+    mazeSize: number = 8, 
+    isTimedMode: boolean = false, 
+    initialTime: number = 60, 
+    timeBonus: number = 10,
+    minimapMode: 'always' | 'pyramid' = 'always'
+  ) {
     this.pyramidPlacementMode = pyramidMode;
     this.customWallTexture = wallTexture;
     this.customFloorTexture = floorTexture;
@@ -69,6 +89,8 @@ export class MazeScene {
     this.isTimedMode = isTimedMode;
     this.timeRemaining = initialTime;
     this.timeBonus = timeBonus;
+    this.minimapMode = minimapMode;
+    this.isMinimapEnabled = minimapMode === 'always';
     
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
@@ -769,19 +791,22 @@ export class MazeScene {
     this.renderer.setScissorTest(false);
     this.renderer.render(this.scene, this.mainCamera);
 
-    // Render mini-map view (bottom-right corner)
-    const minimapSize = Math.min(window.innerWidth, window.innerHeight) * 0.3;
-    const padding = 10;
-    
-    // Set viewport and scissor for minimap
-    const vpX = window.innerWidth - minimapSize - padding;
-    const vpY = padding;
-    
-    this.renderer.setViewport(vpX, vpY, minimapSize, minimapSize);
-    this.renderer.setScissor(vpX, vpY, minimapSize, minimapSize);
-    this.renderer.setScissorTest(true);
-    
-    this.renderer.render(this.scene, this.miniMapCamera);
+    // Only render minimap if enabled
+    if (this.isMinimapEnabled) {
+      // Render mini-map view (bottom-right corner)
+      const minimapSize = Math.min(window.innerWidth, window.innerHeight) * 0.3;
+      const padding = 10;
+      
+      // Set viewport and scissor for minimap
+      const vpX = window.innerWidth - minimapSize - padding;
+      const vpY = padding;
+      
+      this.renderer.setViewport(vpX, vpY, minimapSize, minimapSize);
+      this.renderer.setScissor(vpX, vpY, minimapSize, minimapSize);
+      this.renderer.setScissorTest(true);
+      
+      this.renderer.render(this.scene, this.miniMapCamera);
+    }
   }
 
   private checkPyramidCollisions() {
@@ -802,6 +827,11 @@ export class MazeScene {
         if (index > -1) {
             this.pyramids.splice(index, 1);
             this.scene.remove(pyramid);
+            
+            // Enable minimap if in pyramid mode and not already enabled
+            if (this.minimapMode === 'pyramid' && !this.isMinimapEnabled) {
+                this.isMinimapEnabled = true;
+            }
             
             // Pause the game and show collection screen
             if (this.animationFrameId !== null) {
