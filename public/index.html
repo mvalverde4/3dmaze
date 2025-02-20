@@ -70,7 +70,7 @@
         }
 
         .menu-button {
-            width: 200px;
+            width: 400px;
             height: 50px;
             margin: 10px;
             border: none;
@@ -80,6 +80,11 @@
             font-size: 1.2em;
             cursor: pointer;
             transition: background-color 0.3s;
+            text-align: center;
+            padding: 0 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .menu-button:hover {
@@ -91,7 +96,7 @@
         }
 
         .texture-label {
-            width: 200px;
+            width: 400px;
             height: 50px;
             margin: 10px;
             border: none;
@@ -104,6 +109,10 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 0 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .texture-label:hover {
@@ -221,6 +230,16 @@
         <select id="minimapMode" class="menu-button" style="background: #6c757d; text-align: center;">
             <option value="always">Minimap Always Visible</option>
             <option value="pyramid">Minimap Unlocked by Pyramid</option>
+        </select>
+
+        <select id="pyramidScreenMode" class="menu-button" style="background: #6c757d; text-align: center;">
+            <option value="show">Show Pyramid Collection Screens</option>
+            <option value="hide">Hide Pyramid Collection Screens</option>
+        </select>
+
+        <select id="redTileVisibility" class="menu-button" style="background: #6c757d; text-align: center;">
+            <option value="show">Show Red Tiles</option>
+            <option value="hide">Hide Red Tiles</option>
         </select>
         
         <button id="startTimedLongButton" class="menu-button" style="background: #dc3545;">Start Long Timed Game (120s)</button>

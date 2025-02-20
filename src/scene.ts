@@ -45,6 +45,8 @@ export class MazeScene {
   private scoreDisplay!: HTMLDivElement;
   private minimapMode: 'always' | 'pyramid';
   private isMinimapEnabled: boolean;
+  private showPyramidScreens: boolean;
+  private showRedTiles: boolean;
 
   // Initialize properties with default values
   private currentPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -80,7 +82,9 @@ export class MazeScene {
     isTimedMode: boolean = false, 
     initialTime: number = 60, 
     timeBonus: number = 10,
-    minimapMode: 'always' | 'pyramid' = 'always'
+    minimapMode: 'always' | 'pyramid' = 'always',
+    showPyramidScreens: boolean = true,
+    showRedTiles: boolean = true
   ) {
     this.pyramidPlacementMode = pyramidMode;
     this.customWallTexture = wallTexture;
@@ -91,6 +95,8 @@ export class MazeScene {
     this.timeBonus = timeBonus;
     this.minimapMode = minimapMode;
     this.isMinimapEnabled = minimapMode === 'always';
+    this.showPyramidScreens = showPyramidScreens;
+    this.showRedTiles = showRedTiles;
     
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
@@ -553,13 +559,16 @@ export class MazeScene {
             tileColor = 0x00ff00; // Green for farthest dead end
           }
           
-          const deadEndMaterial = new THREE.MeshPhongMaterial({ color: tileColor });
-          const deadEndTile = new THREE.Mesh(tileGeometry, deadEndMaterial);
-          deadEndTile.rotation.x = -Math.PI / 2;
-          deadEndTile.position.set(worldX, 0.01, worldZ);
-          this.scene.add(deadEndTile);
+          // Only create visible tile if it's not a red tile or if red tiles are visible
+          if (tileColor !== 0xff0000 || this.showRedTiles) {
+            const deadEndMaterial = new THREE.MeshPhongMaterial({ color: tileColor });
+            const deadEndTile = new THREE.Mesh(tileGeometry, deadEndMaterial);
+            deadEndTile.rotation.x = -Math.PI / 2;
+            deadEndTile.position.set(worldX, 0.01, worldZ);
+            this.scene.add(deadEndTile);
+          }
 
-          // Collect red tile positions
+          // Collect red tile positions regardless of visibility
           if (tileColor === 0xff0000) {
             redTilePositions.push({ x: worldX, z: worldZ });
           }
@@ -832,51 +841,62 @@ export class MazeScene {
             if (this.minimapMode === 'pyramid' && !this.isMinimapEnabled) {
                 this.isMinimapEnabled = true;
             }
-            
-            // Pause the game and show collection screen
-            if (this.animationFrameId !== null) {
-                cancelAnimationFrame(this.animationFrameId);
-                this.animationFrameId = null;
-            }
 
-            // Pause timer if in timed mode
-            if (this.isTimedMode) {
-                this.timerPaused = true;
-            }
+            if (this.showPyramidScreens) {
+                // Pause the game and show collection screen
+                if (this.animationFrameId !== null) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
 
-            // Show pyramid collection screen
-            const pyramidCollectScreen = document.getElementById('pyramidCollectScreen');
-            if (pyramidCollectScreen) {
-                pyramidCollectScreen.style.display = 'flex';
-                
-                // Add continue button listener
-                const continueButton = document.getElementById('continueButton');
-                if (continueButton) {
-                    const resumeGame = () => {
-                        pyramidCollectScreen.style.display = 'none';
-                        
-                        // Resume timer if in timed mode
-                        if (this.isTimedMode) {
-                            this.timerPaused = false;
-                        }
-                        
-                        // Update score or add time bonus
-                        if (this.isTimedMode) {
-                            this.timeRemaining += this.timeBonus;
-                            this.updateTimerDisplay();
-                        } else {
-                            this.score++;
-                            this.updateScoreDisplay();
-                        }
-                        
-                        // Resume animation
-                        this.animate();
-                        
-                        // Remove the event listener
-                        continueButton.removeEventListener('click', resumeGame);
-                    };
+                // Pause timer if in timed mode
+                if (this.isTimedMode) {
+                    this.timerPaused = true;
+                }
+
+                // Show pyramid collection screen
+                const pyramidCollectScreen = document.getElementById('pyramidCollectScreen');
+                if (pyramidCollectScreen) {
+                    pyramidCollectScreen.style.display = 'flex';
                     
-                    continueButton.addEventListener('click', resumeGame);
+                    // Add continue button listener
+                    const continueButton = document.getElementById('continueButton');
+                    if (continueButton) {
+                        const resumeGame = () => {
+                            pyramidCollectScreen.style.display = 'none';
+                            
+                            // Resume timer if in timed mode
+                            if (this.isTimedMode) {
+                                this.timerPaused = false;
+                            }
+                            
+                            // Update score or add time bonus
+                            if (this.isTimedMode) {
+                                this.timeRemaining += this.timeBonus;
+                                this.updateTimerDisplay();
+                            } else {
+                                this.score++;
+                                this.updateScoreDisplay();
+                            }
+                            
+                            // Resume animation
+                            this.animate();
+                            
+                            // Remove the event listener
+                            continueButton.removeEventListener('click', resumeGame);
+                        };
+                        
+                        continueButton.addEventListener('click', resumeGame);
+                    }
+                }
+            } else {
+                // If screens are disabled, just update score/timer immediately
+                if (this.isTimedMode) {
+                    this.timeRemaining += this.timeBonus;
+                    this.updateTimerDisplay();
+                } else {
+                    this.score++;
+                    this.updateScoreDisplay();
                 }
             }
         }

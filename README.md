@@ -28,7 +28,7 @@ npm install
 ```bash
 npm run dev
 ```
-This will start a development server at `http://localhost:8080` with hot reloading enabled.
+This will start a development server at `http://localhost:9001` with hot reloading enabled.
 
 ### Production Build
 ```bash
