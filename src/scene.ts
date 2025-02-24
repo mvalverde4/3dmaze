@@ -30,8 +30,9 @@ export class MazeScene {
   private floorTexture: THREE.Texture | null = null;
   private customWallTexture: string | undefined;
   private customFloorTexture: string | undefined;
-  private pyramids: THREE.Mesh[] = []; // Store all pyramid meshes
+  private pyramids: THREE.Mesh[] = []; // Store all floating object meshes
   private pyramidPlacementMode: PyramidPlacementMode;
+  private objectShape: string;
   private farthestDeadEndTile: THREE.Vector3 | null = null;
   private mazeSize: number;
   private texturesLoadedCallback: (() => void) | null = null;
@@ -74,6 +75,10 @@ export class MazeScene {
 
   private timerPaused: boolean = false;
 
+  private readonly SHAPE_TYPES = ['pyramid', 'sphere', 'cylinder', 'cube'];
+  private shapeDistribution: Map<string, number> = new Map();
+  private redTileCount: number = 0;
+
   constructor(
     pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, 
     wallTexture?: string, 
@@ -84,7 +89,8 @@ export class MazeScene {
     timeBonus: number = 10,
     minimapMode: 'always' | 'pyramid' = 'always',
     showPyramidScreens: boolean = true,
-    showRedTiles: boolean = true
+    showRedTiles: boolean = true,
+    objectShape: string = 'pyramid'
   ) {
     this.pyramidPlacementMode = pyramidMode;
     this.customWallTexture = wallTexture;
@@ -97,6 +103,7 @@ export class MazeScene {
     this.isMinimapEnabled = minimapMode === 'always';
     this.showPyramidScreens = showPyramidScreens;
     this.showRedTiles = showRedTiles;
+    this.objectShape = objectShape;
     
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
@@ -500,6 +507,10 @@ export class MazeScene {
     const { grid: maze, centerDeadEnd, farthestDeadEnd } = mazeGen.generate();
     this.maze = maze;
 
+    // Reset shape distribution for new maze
+    this.shapeDistribution.clear();
+    this.redTileCount = 0;
+
     // Store the farthest dead end position for win condition checking
     this.farthestDeadEndTile = new THREE.Vector3(
       farthestDeadEnd.x * 2 - (this.mazeSize - 1),
@@ -529,6 +540,42 @@ export class MazeScene {
     // Create individual floor tiles
     const tileGeometry = new THREE.PlaneGeometry(2, 2);
     
+    // First pass: Count red tiles
+    maze.forEach((row, x) => {
+      row.forEach((cell, y) => {
+        const wallCount = Object.values(cell.walls).filter(wall => wall).length;
+        if (wallCount === 3) {
+          const isRedTile = x !== centerDeadEnd.x || y !== centerDeadEnd.y;
+          const isFarthestTile = x === farthestDeadEnd.x && y === farthestDeadEnd.y;
+          if (isRedTile && !isFarthestTile) {
+            this.redTileCount++;
+          }
+        }
+      });
+    });
+
+    // Initialize shape distribution if using mixed shapes
+    if (this.objectShape === 'mixed') {
+      console.log('Initializing mixed shapes distribution. Red tile count:', this.redTileCount);
+      
+      const shapesPerType = Math.floor(this.redTileCount / this.SHAPE_TYPES.length);
+      const remainder = this.redTileCount % this.SHAPE_TYPES.length;
+      
+      console.log('Shapes per type:', shapesPerType, 'Remainder:', remainder);
+      
+      this.SHAPE_TYPES.forEach(type => {
+        this.shapeDistribution.set(type, shapesPerType);
+      });
+      
+      // Distribute remainder evenly starting from first shape
+      for (let i = 0; i < remainder; i++) {
+        const type = this.SHAPE_TYPES[i];
+        this.shapeDistribution.set(type, (this.shapeDistribution.get(type) || 0) + 1);
+      }
+
+      console.log('Initial shape distribution:', Object.fromEntries(this.shapeDistribution));
+    }
+
     // Collect positions of red tiles
     const redTilePositions: { x: number, z: number }[] = [];
     
@@ -537,15 +584,6 @@ export class MazeScene {
         // Convert grid coordinates to world coordinates
         const worldX = x * 2 - (this.mazeSize - 1);
         const worldZ = y * 2 - (this.mazeSize - 1);
-
-        // Debug log coordinate conversion for each cell
-        console.log('Cell coordinate conversion:', {
-            gridX: x,
-            gridY: y,
-            worldX,
-            worldZ,
-            mazeSize: this.mazeSize
-        });
 
         // Count number of walls to identify dead ends
         const wallCount = Object.values(cell.walls).filter(wall => wall).length;
@@ -605,14 +643,21 @@ export class MazeScene {
     // Create pyramids based on selected mode
     switch (this.pyramidPlacementMode) {
       case PyramidPlacementMode.ALL_RED_TILES:
-        // Create pyramids on all red tiles
+        // Shuffle red tile positions if using mixed shapes to ensure random distribution
+        if (this.objectShape === 'mixed') {
+          for (let i = redTilePositions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [redTilePositions[i], redTilePositions[j]] = [redTilePositions[j], redTilePositions[i]];
+          }
+        }
+        // Create objects on all red tiles
         redTilePositions.forEach(pos => {
           this.createPyramid(pos.x, pos.z);
         });
         break;
 
       case PyramidPlacementMode.RANDOM_RED_TILE:
-        // Create pyramid on a random red tile
+        // Create object on a random red tile
         if (redTilePositions.length > 0) {
           const randomIndex = Math.floor(Math.random() * redTilePositions.length);
           const randomPosition = redTilePositions[randomIndex];
@@ -621,7 +666,7 @@ export class MazeScene {
         break;
 
       case PyramidPlacementMode.CLOSEST_RED_TILE:
-        // Create pyramid on the closest red tile
+        // Create object on the closest red tile
         const closestRedTile = this.findClosestRedTile(redTilePositions, centerX, centerZ);
         if (closestRedTile) {
           this.createPyramid(closestRedTile.x, closestRedTile.z);
@@ -694,17 +739,67 @@ export class MazeScene {
   }
 
   private createPyramid(x: number, z: number) {
-    // Create pyramid geometry
-    const geometry = new THREE.ConeGeometry(0.3, 0.6, 4);
+    let geometry: THREE.BufferGeometry;
+    let shapeType = this.objectShape;
+    
+    // Handle mixed shapes
+    if (this.objectShape === 'mixed') {
+      shapeType = this.getNextShapeType();
+    }
+    
+    // Create geometry based on selected shape
+    switch (shapeType) {
+      case 'sphere':
+        geometry = new THREE.SphereGeometry(0.3, 32, 32);
+        break;
+      case 'cylinder':
+        geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32);
+        break;
+      case 'cube':
+        geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        break;
+      default: // pyramid
+        geometry = new THREE.ConeGeometry(0.3, 0.6, 4);
+        break;
+    }
+
     const material = new THREE.MeshPhongMaterial({ color: 0xFFA500 }); // Orange color
-    const pyramid = new THREE.Mesh(geometry, material);
+    const object = new THREE.Mesh(geometry, material);
     
-    // Position the pyramid
-    pyramid.position.set(x, 0.8, z); // Float 0.8 units above the floor
-    pyramid.rotation.y = Math.PI / 4; // Initial 45-degree rotation for better orientation
+    // Store the shape type with the object for collection messages
+    object.userData.shapeType = shapeType;
     
-    this.scene.add(pyramid);
-    this.pyramids.push(pyramid);
+    // Position the object
+    object.position.set(x, 0.8, z); // Float 0.8 units above the floor
+    
+    // Only rotate pyramids and cylinders by 45 degrees
+    if (shapeType === 'pyramid' || shapeType === 'cylinder') {
+      object.rotation.y = Math.PI / 4;
+    }
+    
+    this.scene.add(object);
+    this.pyramids.push(object);
+  }
+
+  private getNextShapeType(): string {
+    if (this.objectShape !== 'mixed') return this.objectShape;
+
+    // Debug log current distribution
+    console.log('Current shape distribution:', Object.fromEntries(this.shapeDistribution));
+
+    // Find a shape that still has remaining allocations
+    for (const type of this.SHAPE_TYPES) {
+      const count = this.shapeDistribution.get(type) || 0;
+      if (count > 0) {
+        this.shapeDistribution.set(type, count - 1);
+        console.log(`Selected shape: ${type}, Remaining:`, Object.fromEntries(this.shapeDistribution));
+        return type;
+      }
+    }
+
+    // If we somehow run out (shouldn't happen), log error and return pyramid
+    console.error('No shapes left in distribution!', Object.fromEntries(this.shapeDistribution));
+    return 'pyramid';
   }
 
   private getOpenDirection(cell: Cell): number {
@@ -854,16 +949,42 @@ export class MazeScene {
                     this.timerPaused = true;
                 }
 
-                // Show pyramid collection screen
-                const pyramidCollectScreen = document.getElementById('pyramidCollectScreen');
-                if (pyramidCollectScreen) {
-                    pyramidCollectScreen.style.display = 'flex';
+                // Show collection screen with appropriate message
+                const collectScreen = document.getElementById('pyramidCollectScreen');
+                const titleElement = document.getElementById('collectShapeTitle');
+                const messageElement = document.getElementById('collectShapeMessage');
+                
+                if (collectScreen && titleElement && messageElement) {
+                    // Get the actual shape type from the object's userData
+                    const shapeType = pyramid.userData.shapeType || this.objectShape;
+                    
+                    // Set title and message based on shape
+                    switch (shapeType) {
+                        case 'sphere':
+                            titleElement.textContent = 'Sphere Collected!';
+                            messageElement.textContent = 'You found a mystical sphere. Keep exploring to find more!';
+                            break;
+                        case 'cylinder':
+                            titleElement.textContent = 'Cylinder Collected!';
+                            messageElement.textContent = 'You found a mystical cylinder. Keep exploring to find more!';
+                            break;
+                        case 'cube':
+                            titleElement.textContent = 'Cube Collected!';
+                            messageElement.textContent = 'You found a mystical cube. Keep exploring to find more!';
+                            break;
+                        default: // pyramid
+                            titleElement.textContent = 'Pyramid Collected!';
+                            messageElement.textContent = 'You found a mystical pyramid. Keep exploring to find more!';
+                            break;
+                    }
+                    
+                    collectScreen.style.display = 'flex';
                     
                     // Add continue button listener
                     const continueButton = document.getElementById('continueButton');
                     if (continueButton) {
                         const resumeGame = () => {
-                            pyramidCollectScreen.style.display = 'none';
+                            collectScreen.style.display = 'none';
                             
                             // Resume timer if in timed mode
                             if (this.isTimedMode) {

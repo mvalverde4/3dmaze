@@ -6,6 +6,7 @@ let currentWallTexture: string | undefined;
 let currentFloorTexture: string | undefined;
 let customWallTexture: string | undefined;
 let customFloorTexture: string | undefined;
+let currentObjectShape: string = 'mixed';
 
 // Function to handle custom texture uploads
 function handleTextureUpload(file: File, textureType: 'wall' | 'floor'): Promise<string> {
@@ -203,7 +204,7 @@ function showRestartScreen() {
             const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'pyramid';
             const showPyramidScreens = newPyramidScreenSelect.value === 'show';
             const showRedTiles = newRedTileVisibilitySelect.value === 'show';
-            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles);
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles, currentObjectShape);
         });
 
         // Handle 60s timed game button click
@@ -213,7 +214,7 @@ function showRestartScreen() {
             const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'pyramid';
             const showPyramidScreens = newPyramidScreenSelect.value === 'show';
             const showRedTiles = newRedTileVisibilitySelect.value === 'show';
-            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles);
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles, currentObjectShape);
         });
 
         // Handle 120s timed game button click
@@ -223,7 +224,7 @@ function showRestartScreen() {
             const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'pyramid';
             const showPyramidScreens = newPyramidScreenSelect.value === 'show';
             const showRedTiles = newRedTileVisibilitySelect.value === 'show';
-            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30, selectedMinimapMode, showPyramidScreens, showRedTiles);
+            initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30, selectedMinimapMode, showPyramidScreens, showRedTiles, currentObjectShape);
         });
     }
 }
@@ -239,8 +240,10 @@ export function initGame(
     timeBonus: number = 10,
     minimapMode: 'always' | 'pyramid' = 'always',
     showPyramidScreens: boolean = true,
-    showRedTiles: boolean = true
+    showRedTiles: boolean = true,
+    objectShape: string = 'mixed'
 ) {
+    console.log('initGame called with objectShape:', objectShape);
     const titleScreen = document.getElementById('titleScreen');
     const gameContainer = document.getElementById('game');
     const loadingScreen = document.getElementById('loadingScreen');
@@ -255,6 +258,8 @@ export function initGame(
     currentPyramidMode = pyramidMode;
     currentWallTexture = wallTexture;
     currentFloorTexture = floorTexture;
+    currentObjectShape = objectShape;
+    console.log('currentObjectShape set to:', currentObjectShape);
 
     // Create new maze scene
     mazeScene = new MazeScene(
@@ -267,7 +272,8 @@ export function initGame(
         timeBonus,
         minimapMode,
         showPyramidScreens,
-        showRedTiles
+        showRedTiles,
+        objectShape
     );
 
     // Wait for textures to load
@@ -347,7 +353,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMinimapMode = minimapModeSelect.value as 'always' | 'pyramid';
         const showPyramidScreens = pyramidScreenModeSelect.value === 'show';
         const showRedTiles = (document.getElementById('redTileVisibility') as HTMLSelectElement).value === 'show';
-        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles);
+        console.log('Start button clicked with currentObjectShape:', currentObjectShape);
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles, currentObjectShape);
     });
 
     // Handle 60s timed game button click
@@ -357,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMinimapMode = minimapModeSelect.value as 'always' | 'pyramid';
         const showPyramidScreens = pyramidScreenModeSelect.value === 'show';
         const showRedTiles = (document.getElementById('redTileVisibility') as HTMLSelectElement).value === 'show';
-        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles);
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10, selectedMinimapMode, showPyramidScreens, showRedTiles, currentObjectShape);
     });
 
     // Handle 120s timed game button click
@@ -367,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedMinimapMode = minimapModeSelect.value as 'always' | 'pyramid';
         const showPyramidScreens = pyramidScreenModeSelect.value === 'show';
         const showRedTiles = (document.getElementById('redTileVisibility') as HTMLSelectElement).value === 'show';
-        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30, selectedMinimapMode, showPyramidScreens, showRedTiles);
+        initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30, selectedMinimapMode, showPyramidScreens, showRedTiles, currentObjectShape);
     });
 
     // Add restart button event listener
@@ -379,6 +386,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameOverScreen.style.display = 'none';
             }
             restartGame();
+        });
+    }
+
+    // Add event listener for object shape selector
+    const objectShapeSelect = document.getElementById('objectShape') as HTMLSelectElement;
+    if (objectShapeSelect) {
+        objectShapeSelect.addEventListener('change', (event) => {
+            const target = event.target as HTMLSelectElement;
+            currentObjectShape = target.value;
+            console.log('Shape selector changed to:', currentObjectShape);
         });
     }
 });

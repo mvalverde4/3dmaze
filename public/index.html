@@ -217,9 +217,9 @@
         </label>
 
         <select id="pyramidMode" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="closest">Pyramid on Closest Red Tile</option>
-            <option value="random">Pyramid on Random Red Tile</option>
-            <option value="all">Pyramids on All Red Tiles</option>
+            <option value="closest">Object on Closest Red Tile</option>
+            <option value="random">Object on Random Red Tile</option>
+            <option value="all">Objects on All Red Tiles</option>
         </select>
 
         <select id="mazeSize" class="menu-button" style="background: #6c757d; text-align: center;">
@@ -229,12 +229,20 @@
 
         <select id="minimapMode" class="menu-button" style="background: #6c757d; text-align: center;">
             <option value="always">Minimap Always Visible</option>
-            <option value="pyramid">Minimap Unlocked by Pyramid</option>
+            <option value="pyramid">Minimap Unlocked by Collection</option>
         </select>
 
         <select id="pyramidScreenMode" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="show">Show Pyramid Collection Screens</option>
-            <option value="hide">Hide Pyramid Collection Screens</option>
+            <option value="show">Show Collection Screens</option>
+            <option value="hide">Hide Collection Screens</option>
+        </select>
+
+        <select id="objectShape" class="menu-button" style="background: #6c757d; text-align: center;">
+            <option value="mixed">Mixed Shapes</option>
+            <option value="pyramid">Pyramid Shape</option>
+            <option value="sphere">Sphere Shape</option>
+            <option value="cylinder">Cylinder Shape</option>
+            <option value="cube">Cube Shape</option>
         </select>
 
         <select id="redTileVisibility" class="menu-button" style="background: #6c757d; text-align: center;">
@@ -256,8 +264,12 @@
     </div>
 
     <div id="pyramidCollectScreen" style="display: none;">
-        <div class="game-over-title">Pyramid Collected!</div>
-        <p class="game-over-text">You found a mystical pyramid. Keep exploring to find more!</p>
+        <div class="game-over-title">
+            <span id="collectShapeTitle">Object Collected!</span>
+        </div>
+        <p class="game-over-text">
+            <span id="collectShapeMessage">You found a mystical object. Keep exploring to find more!</span>
+        </p>
         <button id="continueButton" class="menu-button">Continue</button>
     </div>
 
