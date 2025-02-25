@@ -1,19 +1,7 @@
 import * as THREE from 'three';
 import { MazeGenerator, Cell } from './maze';
 
-// Declare the initGame function from index.ts
-declare function initGame(
-    pyramidMode: PyramidPlacementMode, 
-    wallTexture?: string, 
-    floorTexture?: string,
-    mazeSize?: number,
-    isTimedMode?: boolean,
-    initialTime?: number,
-    timeBonus?: number,
-    minimapMode?: 'always' | 'pyramid'
-): void;
-
-export enum PyramidPlacementMode {
+export enum ObjectPlacementMode {
   ALL_RED_TILES = 'all',
   RANDOM_RED_TILE = 'random',
   CLOSEST_RED_TILE = 'closest'
@@ -30,8 +18,8 @@ export class MazeScene {
   private floorTexture: THREE.Texture | null = null;
   private customWallTexture: string | undefined;
   private customFloorTexture: string | undefined;
-  private pyramids: THREE.Mesh[] = []; // Store all floating object meshes
-  private pyramidPlacementMode: PyramidPlacementMode;
+  private collectibles: THREE.Mesh[] = []; // Renamed from pyramids
+  private objectPlacementMode: ObjectPlacementMode; // Renamed from pyramidPlacementMode
   private objectShape: string;
   private farthestDeadEndTile: THREE.Vector3 | null = null;
   private mazeSize: number;
@@ -44,9 +32,9 @@ export class MazeScene {
   private timerDisplay!: HTMLDivElement;
   private timerInterval: NodeJS.Timeout | null = null;
   private scoreDisplay!: HTMLDivElement;
-  private minimapMode: 'always' | 'pyramid';
+  private minimapMode: 'always' | 'object';
   private isMinimapEnabled: boolean;
-  private showPyramidScreens: boolean;
+  private showCollectibleScreens: boolean; // Renamed from showPyramidScreens
   private showRedTiles: boolean;
 
   // Initialize properties with default values
@@ -80,19 +68,19 @@ export class MazeScene {
   private redTileCount: number = 0;
 
   constructor(
-    pyramidMode: PyramidPlacementMode = PyramidPlacementMode.CLOSEST_RED_TILE, 
+    objectMode: ObjectPlacementMode = ObjectPlacementMode.CLOSEST_RED_TILE, 
     wallTexture?: string, 
     floorTexture?: string, 
     mazeSize: number = 8, 
     isTimedMode: boolean = false, 
     initialTime: number = 60, 
     timeBonus: number = 10,
-    minimapMode: 'always' | 'pyramid' = 'always',
-    showPyramidScreens: boolean = true,
+    minimapMode: 'always' | 'object' = 'always',
+    showCollectibleScreens: boolean = true,
     showRedTiles: boolean = true,
     objectShape: string = 'pyramid'
   ) {
-    this.pyramidPlacementMode = pyramidMode;
+    this.objectPlacementMode = objectMode;
     this.customWallTexture = wallTexture;
     this.customFloorTexture = floorTexture;
     this.mazeSize = mazeSize;
@@ -101,7 +89,7 @@ export class MazeScene {
     this.timeBonus = timeBonus;
     this.minimapMode = minimapMode;
     this.isMinimapEnabled = minimapMode === 'always';
-    this.showPyramidScreens = showPyramidScreens;
+    this.showCollectibleScreens = showCollectibleScreens;
     this.showRedTiles = showRedTiles;
     this.objectShape = objectShape;
     
@@ -333,13 +321,11 @@ export class MazeScene {
     this.wallTextureLoaded = false;
     this.floorTextureLoaded = false;
     
-    // Load wall texture
-    const loadWallTexture = this.customWallTexture
-      ? this.textureLoader.loadAsync(this.customWallTexture)
-      : this.textureLoader.loadAsync('/textures/wall.png');
+    // Load wall texture - only load default if no custom texture is provided
+    const wallTexturePath = this.customWallTexture || '/textures/wall.png';
     
-    loadWallTexture.then(
-      (texture) => {
+    this.textureLoader.loadAsync(wallTexturePath)
+      .then(texture => {
         console.log('Wall texture loaded successfully');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
@@ -350,20 +336,35 @@ export class MazeScene {
         this.updateWallTextures();
         this.wallTextureLoaded = true;
         this.checkTexturesLoaded();
-      }
-    ).catch((error) => {
-      console.error('Error loading wall texture:', error);
-      this.wallTextureLoaded = true; // Mark as loaded even on error to prevent hanging
-      this.checkTexturesLoaded();
-    });
+      })
+      .catch(error => {
+        console.error('Error loading wall texture:', error);
+        // Attempt to load default texture as fallback if custom texture failed
+        if (this.customWallTexture) {
+          console.log('Attempting to load default wall texture as fallback');
+          this.textureLoader.loadAsync('/textures/wall.png')
+            .then(texture => {
+              this.wallTexture = texture;
+              this.updateWallTextures();
+            })
+            .catch(fallbackError => {
+              console.error('Error loading fallback wall texture:', fallbackError);
+            })
+            .finally(() => {
+              this.wallTextureLoaded = true;
+              this.checkTexturesLoaded();
+            });
+        } else {
+          this.wallTextureLoaded = true;
+          this.checkTexturesLoaded();
+        }
+      });
 
-    // Load floor texture
-    const loadFloorTexture = this.customFloorTexture
-      ? this.textureLoader.loadAsync(this.customFloorTexture)
-      : this.textureLoader.loadAsync('/textures/floor.png');
+    // Load floor texture - only load default if no custom texture is provided
+    const floorTexturePath = this.customFloorTexture || '/textures/floor.png';
     
-    loadFloorTexture.then(
-      (texture) => {
+    this.textureLoader.loadAsync(floorTexturePath)
+      .then(texture => {
         console.log('Floor texture loaded successfully');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
@@ -376,12 +377,30 @@ export class MazeScene {
         this.updateFloorTexture();
         this.floorTextureLoaded = true;
         this.checkTexturesLoaded();
-      }
-    ).catch((error) => {
-      console.error('Error loading floor texture:', error);
-      this.floorTextureLoaded = true; // Mark as loaded even on error to prevent hanging
-      this.checkTexturesLoaded();
-    });
+      })
+      .catch(error => {
+        console.error('Error loading floor texture:', error);
+        // Attempt to load default texture as fallback if custom texture failed
+        if (this.customFloorTexture) {
+          console.log('Attempting to load default floor texture as fallback');
+          this.textureLoader.loadAsync('/textures/floor.png')
+            .then(texture => {
+              texture.repeat.set(this.mazeSize, this.mazeSize);
+              this.floorTexture = texture;
+              this.updateFloorTexture();
+            })
+            .catch(fallbackError => {
+              console.error('Error loading fallback floor texture:', fallbackError);
+            })
+            .finally(() => {
+              this.floorTextureLoaded = true;
+              this.checkTexturesLoaded();
+            });
+        } else {
+          this.floorTextureLoaded = true;
+          this.checkTexturesLoaded();
+        }
+      });
   }
 
   private updateWallTextures() {
@@ -640,9 +659,9 @@ export class MazeScene {
         mazeSize: this.mazeSize
     });
 
-    // Create pyramids based on selected mode
-    switch (this.pyramidPlacementMode) {
-      case PyramidPlacementMode.ALL_RED_TILES:
+    // Create collectibles based on selected mode
+    switch (this.objectPlacementMode) {
+      case ObjectPlacementMode.ALL_RED_TILES:
         // Shuffle red tile positions if using mixed shapes to ensure random distribution
         if (this.objectShape === 'mixed') {
           for (let i = redTilePositions.length - 1; i > 0; i--) {
@@ -652,24 +671,24 @@ export class MazeScene {
         }
         // Create objects on all red tiles
         redTilePositions.forEach(pos => {
-          this.createPyramid(pos.x, pos.z);
+          this.createCollectible(pos.x, pos.z);
         });
         break;
 
-      case PyramidPlacementMode.RANDOM_RED_TILE:
+      case ObjectPlacementMode.RANDOM_RED_TILE:
         // Create object on a random red tile
         if (redTilePositions.length > 0) {
           const randomIndex = Math.floor(Math.random() * redTilePositions.length);
           const randomPosition = redTilePositions[randomIndex];
-          this.createPyramid(randomPosition.x, randomPosition.z);
+          this.createCollectible(randomPosition.x, randomPosition.z);
         }
         break;
 
-      case PyramidPlacementMode.CLOSEST_RED_TILE:
+      case ObjectPlacementMode.CLOSEST_RED_TILE:
         // Create object on the closest red tile
         const closestRedTile = this.findClosestRedTile(redTilePositions, centerX, centerZ);
         if (closestRedTile) {
-          this.createPyramid(closestRedTile.x, closestRedTile.z);
+          this.createCollectible(closestRedTile.x, closestRedTile.z);
         }
         break;
     }
@@ -738,7 +757,7 @@ export class MazeScene {
     this.scene.add(topWall);
   }
 
-  private createPyramid(x: number, z: number) {
+  private createCollectible(x: number, z: number) {
     let geometry: THREE.BufferGeometry;
     let shapeType = this.objectShape;
     
@@ -772,13 +791,13 @@ export class MazeScene {
     // Position the object
     object.position.set(x, 0.8, z); // Float 0.8 units above the floor
     
-    // Only rotate pyramids and cylinders by 45 degrees
+    // Only rotate collectibles and cylinders by 45 degrees
     if (shapeType === 'pyramid' || shapeType === 'cylinder') {
       object.rotation.y = Math.PI / 4;
     }
     
     this.scene.add(object);
-    this.pyramids.push(object);
+    this.collectibles.push(object);
   }
 
   private getNextShapeType(): string {
@@ -840,8 +859,8 @@ export class MazeScene {
         this.mainCamera.position.copy(this.currentPosition);
         this.updatePositionIndicator();
 
-        // Check for pyramid collisions
-        this.checkPyramidCollisions();
+        // Check for collectible collisions
+        this.checkCollectibleCollisions();
       } else {
         // Animation complete
         this.isMoving = false;
@@ -849,8 +868,8 @@ export class MazeScene {
         this.mainCamera.position.copy(this.targetPosition);
         this.updatePositionIndicator();
         
-        // Check for pyramid collisions
-        this.checkPyramidCollisions();
+        // Check for collectible collisions
+        this.checkCollectibleCollisions();
         
         // Check win condition after movement is complete
         this.checkWinCondition();
@@ -881,9 +900,9 @@ export class MazeScene {
       }
     }
 
-    // Rotate pyramids
-    this.pyramids.forEach(pyramid => {
-      pyramid.rotation.y += 0.02; // Rotate 0.02 radians per frame
+    // Rotate collectibles
+    this.collectibles.forEach(collectible => {
+      collectible.rotation.y += 0.02; // Rotate 0.02 radians per frame
     });
     
     // Clear everything
@@ -913,50 +932,60 @@ export class MazeScene {
     }
   }
 
-  private checkPyramidCollisions() {
+  private checkCollectibleCollisions() {
     const collisionDistance = 0.8; // Distance threshold for collision
-    const pyramidsToRemove: THREE.Mesh[] = [];
+    const collectiblesToRemove: THREE.Mesh[] = [];
 
-    // Check each pyramid for collision with the camera
-    this.pyramids.forEach(pyramid => {
-        const distance = this.currentPosition.distanceTo(pyramid.position);
+    // Check each collectible for collision with the camera
+    this.collectibles.forEach(collectible => {
+        const distance = this.currentPosition.distanceTo(collectible.position);
         if (distance < collisionDistance) {
-            pyramidsToRemove.push(pyramid);
+            collectiblesToRemove.push(collectible);
         }
     });
 
-    // Remove collided pyramids and update score or timer
-    pyramidsToRemove.forEach(pyramid => {
-        const index = this.pyramids.indexOf(pyramid);
+    // Remove collided collectibles and update score or timer
+    collectiblesToRemove.forEach(collectible => {
+        const index = this.collectibles.indexOf(collectible);
         if (index > -1) {
-            this.pyramids.splice(index, 1);
-            this.scene.remove(pyramid);
+            this.collectibles.splice(index, 1);
+            this.scene.remove(collectible);
             
-            // Enable minimap if in pyramid mode and not already enabled
-            if (this.minimapMode === 'pyramid' && !this.isMinimapEnabled) {
+            // Enable minimap if in object mode and not already enabled
+            if (this.minimapMode === 'object' && !this.isMinimapEnabled) {
                 this.isMinimapEnabled = true;
             }
 
-            if (this.showPyramidScreens) {
+            if (this.isTimedMode) {
+                // Add time bonus in timed mode
+                this.timeRemaining += this.timeBonus;
+                this.updateTimerDisplay();
+            } else {
+                // Increment score in regular mode
+                this.score++;
+                this.updateScoreDisplay();
+            }
+
+            if (this.showCollectibleScreens) {
                 // Pause the game and show collection screen
                 if (this.animationFrameId !== null) {
                     cancelAnimationFrame(this.animationFrameId);
                     this.animationFrameId = null;
                 }
-
+                
                 // Pause timer if in timed mode
                 if (this.isTimedMode) {
                     this.timerPaused = true;
                 }
 
                 // Show collection screen with appropriate message
-                const collectScreen = document.getElementById('pyramidCollectScreen');
+                const collectScreen = document.getElementById('collectScreen');
                 const titleElement = document.getElementById('collectShapeTitle');
                 const messageElement = document.getElementById('collectShapeMessage');
                 
                 if (collectScreen && titleElement && messageElement) {
                     // Get the actual shape type from the object's userData
-                    const shapeType = pyramid.userData.shapeType || this.objectShape;
+                    const shapeType = collectible.userData.shapeType || this.objectShape;
                     
                     // Set title and message based on shape
                     switch (shapeType) {
@@ -975,43 +1004,43 @@ export class MazeScene {
                         default: // pyramid
                             titleElement.textContent = 'Pyramid Collected!';
                             messageElement.textContent = 'You found a mystical pyramid. Keep exploring to find more!';
-                            break;
                     }
                     
+                    // Show the screen
                     collectScreen.style.display = 'flex';
                     
-                    // Add continue button listener
+                    // Add event listener to continue button
                     const continueButton = document.getElementById('continueButton');
                     if (continueButton) {
-                        const resumeGame = () => {
-                            collectScreen.style.display = 'none';
+                        // Remove any existing event listeners
+                        const newContinueButton = continueButton.cloneNode(true);
+                        continueButton.parentNode?.replaceChild(newContinueButton, continueButton);
+                        
+                        // Add new event listener
+                        newContinueButton.addEventListener('click', () => {
+                            // Hide the screen
+                            if (collectScreen) {
+                                collectScreen.style.display = 'none';
+                            }
                             
                             // Resume timer if in timed mode
                             if (this.isTimedMode) {
                                 this.timerPaused = false;
                             }
                             
-                            // Update score or add time bonus
-                            if (this.isTimedMode) {
-                                this.timeRemaining += this.timeBonus;
-                                this.updateTimerDisplay();
-                            } else {
-                                this.score++;
-                                this.updateScoreDisplay();
-                            }
-                            
                             // Resume animation
                             this.animate();
-                            
-                            // Remove the event listener
-                            continueButton.removeEventListener('click', resumeGame);
-                        };
-                        
-                        continueButton.addEventListener('click', resumeGame);
+                        });
+                    }
+                } else {
+                    // If screen elements not found, just continue the game
+                    this.animate();
+                    if (this.isTimedMode) {
+                        this.timerPaused = false;
                     }
                 }
             } else {
-                // If screens are disabled, just update score/timer immediately
+                // If not showing collection screens, just update score/timer
                 if (this.isTimedMode) {
                     this.timeRemaining += this.timeBonus;
                     this.updateTimerDisplay();
@@ -1086,47 +1115,25 @@ export class MazeScene {
     const gridX = Math.round((this.currentPosition.x + (this.mazeSize - 1)) / 2);
     const gridZ = Math.round((this.currentPosition.z + (this.mazeSize - 1)) / 2);
     
-    // Add debug logging for coordinate conversion
-    console.log('Coordinate conversion:', {
-        worldX: this.currentPosition.x,
-        worldZ: this.currentPosition.z,
-        gridX,
-        gridZ,
-        mazeSize: this.mazeSize
-    });
-    
-    // Check if current position is within bounds
+    // Check if current position is within bounds - early return for performance
     if (gridX < 0 || gridX >= this.mazeSize || gridZ < 0 || gridZ >= this.mazeSize) {
-        console.log('Out of bounds:', { gridX, gridZ, mazeSize: this.mazeSize });
         return false;
     }
 
-    // Get current cell
+    // Get current cell - early return if cell doesn't exist
     const currentCell = this.maze[gridX][gridZ];
     if (!currentCell) {
-        console.log('No cell found at:', { gridX, gridZ });
         return false;
     }
 
-    // Check if there's a wall in the movement direction
-    const result = {
-        north: !currentCell.walls.north,
-        south: !currentCell.walls.south,
-        east: !currentCell.walls.east,
-        west: !currentCell.walls.west
-    }[direction];
-
-    // Debug log the movement attempt
-    console.log('Movement check:', {
-        direction,
-        gridX,
-        gridZ,
-        walls: currentCell.walls,
-        canMove: result,
-        currentCell
-    });
-
-    return result;
+    // Direct lookup for wall in movement direction - more efficient than creating an object
+    switch (direction) {
+        case 'north': return !currentCell.walls.north;
+        case 'south': return !currentCell.walls.south;
+        case 'east': return !currentCell.walls.east;
+        case 'west': return !currentCell.walls.west;
+        default: return false;
+    }
   }
 
   private startMovement(newPosition: THREE.Vector3) {
@@ -1148,13 +1155,6 @@ export class MazeScene {
 
     let direction: 'north' | 'south' | 'east' | 'west' = 'north'; // Initialize with default
     let canMove = false;
-    
-    // Debug log current state
-    console.log('Move forward attempt:', {
-        currentRotation: this.currentRotation,
-        normalizedRotation,
-        currentPosition: this.currentPosition.clone()
-    });
     
     // Determine direction based on camera rotation
     if (Math.abs(normalizedRotation - 0) < 0.1) {
@@ -1184,13 +1184,6 @@ export class MazeScene {
     }
 
     if (canMove) {
-        // Debug log the movement
-        console.log('Moving forward:', {
-            from: this.currentPosition.clone(),
-            to: newPosition.clone(),
-            direction,
-            mazeSize: this.mazeSize
-        });
         this.startMovement(newPosition);
     }
   }
@@ -1204,13 +1197,6 @@ export class MazeScene {
 
     let direction: 'north' | 'south' | 'east' | 'west' = 'south'; // Initialize with default
     let canMove = false;
-    
-    // Debug log current state
-    console.log('Move backward attempt:', {
-        currentRotation: this.currentRotation,
-        normalizedRotation,
-        currentPosition: this.currentPosition.clone()
-    });
     
     // Determine direction based on camera rotation (opposite of forward movement)
     if (Math.abs(normalizedRotation - 0) < 0.1) {
@@ -1240,13 +1226,6 @@ export class MazeScene {
     }
 
     if (canMove) {
-        // Debug log the movement
-        console.log('Moving backward:', {
-            from: this.currentPosition.clone(),
-            to: newPosition.clone(),
-            direction,
-            mazeSize: this.mazeSize
-        });
         this.startMovement(newPosition);
     }
   }

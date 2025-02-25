@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Maze Game</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>">
     <style>
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
         .controls {
@@ -187,7 +188,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        #pyramidCollectScreen {
+        #collectScreen {
             position: fixed;
             top: 0;
             left: 0;
@@ -216,7 +217,7 @@
             <input type="file" id="floorTexture" class="texture-upload" accept="image/*">
         </label>
 
-        <select id="pyramidMode" class="menu-button" style="background: #6c757d; text-align: center;">
+        <select id="objectMode" class="menu-button" style="background: #6c757d; text-align: center;">
             <option value="closest">Object on Closest Red Tile</option>
             <option value="random">Object on Random Red Tile</option>
             <option value="all">Objects on All Red Tiles</option>
@@ -229,10 +230,10 @@
 
         <select id="minimapMode" class="menu-button" style="background: #6c757d; text-align: center;">
             <option value="always">Minimap Always Visible</option>
-            <option value="pyramid">Minimap Unlocked by Collection</option>
+            <option value="object">Minimap Unlocked by Collection</option>
         </select>
 
-        <select id="pyramidScreenMode" class="menu-button" style="background: #6c757d; text-align: center;">
+        <select id="objectScreenMode" class="menu-button" style="background: #6c757d; text-align: center;">
             <option value="show">Show Collection Screens</option>
             <option value="hide">Hide Collection Screens</option>
         </select>
@@ -263,7 +264,7 @@
         <button id="restartButton" class="menu-button">Play Again</button>
     </div>
 
-    <div id="pyramidCollectScreen" style="display: none;">
+    <div id="collectScreen" style="display: none;">
         <div class="game-over-title">
             <span id="collectShapeTitle">Object Collected!</span>
         </div>
