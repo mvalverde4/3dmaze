@@ -97,91 +97,40 @@ function showRestartScreen() {
         const currentRedTileVisibility = currentRedTileVisibilitySelect ? currentRedTileVisibilitySelect.value : 'show';
         const currentShape = currentObjectShapeSelect ? currentObjectShapeSelect.value : 'mixed';
 
-        // Reset texture upload labels
-        const wallTextureLabel = document.querySelector('label[for="wallTexture"]');
-        const floorTextureLabel = document.querySelector('label[for="floorTexture"]');
-        if (wallTextureLabel) wallTextureLabel.textContent = 'Upload Wall Texture (Any Size)';
-        if (floorTextureLabel) floorTextureLabel.textContent = 'Upload Floor Texture (Any Size)';
+        // Reset texture button labels
+        const wallTextureButton = document.getElementById('wallTextureButton');
+        const floorTextureButton = document.getElementById('floorTextureButton');
+        
+        if (wallTextureButton) wallTextureButton.textContent = 'Upload Wall Texture';
+        if (floorTextureButton) floorTextureButton.textContent = 'Upload Floor Texture';
 
         // Clear custom textures
         customWallTexture = undefined;
         customFloorTexture = undefined;
 
-        // Clear the title screen content and recreate it
-        titleScreen.innerHTML = `
-            <h1 class="title">3D Maze Game</h1>
-            
-            <label for="wallTexture" class="texture-label">
-                Upload Wall Texture (Any Size)
-                <input type="file" id="wallTexture" class="texture-upload" accept="image/*">
-            </label>
-            
-            <label for="floorTexture" class="texture-label">
-                Upload Floor Texture (Any Size)
-                <input type="file" id="floorTexture" class="texture-upload" accept="image/*">
-            </label>
-
-            <select id="objectMode" class="menu-button" style="background: #6c757d; text-align: center;">
-                <option value="closest">Object on Closest Red Tile</option>
-                <option value="random">Object on Random Red Tile</option>
-                <option value="all">Objects on All Red Tiles</option>
-            </select>
-
-            <select id="mazeSize" class="menu-button" style="background: #6c757d; text-align: center;">
-                <option value="8">Default Size (8x8)</option>
-                <option value="16">Large Size (16x16)</option>
-            </select>
-
-            <select id="minimapMode" class="menu-button" style="background: #6c757d; text-align: center;">
-                <option value="always">Minimap Always Visible</option>
-                <option value="object">Minimap Unlocked by Object</option>
-            </select>
-
-            <select id="objectScreenMode" class="menu-button" style="background: #6c757d; text-align: center;">
-                <option value="show">Show Object Collection Screens</option>
-                <option value="hide">Hide Object Collection Screens</option>
-            </select>
-
-            <select id="objectShape" class="menu-button" style="background: #6c757d; text-align: center;">
-                <option value="mixed">Mixed Shapes</option>
-                <option value="pyramid">Pyramid Shape</option>
-                <option value="sphere">Sphere Shape</option>
-                <option value="cylinder">Cylinder Shape</option>
-                <option value="cube">Cube Shape</option>
-            </select>
-
-            <select id="redTileVisibility" class="menu-button" style="background: #6c757d; text-align: center;">
-                <option value="show">Show Red Tiles</option>
-                <option value="hide">Hide Red Tiles</option>
-            </select>
-            
-            <button id="startTimedLongButton" class="menu-button" style="background: #dc3545;">Start Long Timed Game (120s)</button>
-            <button id="startTimedButton" class="menu-button" style="background: #dc3545;">Start Timed Game (60s)</button>
-            <button id="startButton" class="menu-button">Start Game</button>
-        `;
-
         // Restore all previous selections
-        const newMinimapModeSelect = document.getElementById('minimapMode') as HTMLSelectElement;
-        const newObjectModeSelect = document.getElementById('objectMode') as HTMLSelectElement;
-        const newMazeSizeSelect = document.getElementById('mazeSize') as HTMLSelectElement;
-        const newObjectScreenSelect = document.getElementById('objectScreenMode') as HTMLSelectElement;
-        const newRedTileVisibilitySelect = document.getElementById('redTileVisibility') as HTMLSelectElement;
-        const newObjectShapeSelect = document.getElementById('objectShape') as HTMLSelectElement;
-        
-        if (newMinimapModeSelect) newMinimapModeSelect.value = currentMinimapMode;
-        if (newObjectModeSelect) newObjectModeSelect.value = currentObjectMode;
-        if (newMazeSizeSelect) newMazeSizeSelect.value = currentMazeSize;
-        if (newObjectScreenSelect) newObjectScreenSelect.value = currentObjectScreen;
-        if (newRedTileVisibilitySelect) newRedTileVisibilitySelect.value = currentRedTileVisibility;
-        if (newObjectShapeSelect) newObjectShapeSelect.value = currentShape;
+        if (currentMinimapSelect) currentMinimapSelect.value = currentMinimapMode;
+        if (currentObjectModeSelect) currentObjectModeSelect.value = currentObjectMode;
+        if (currentMazeSizeSelect) currentMazeSizeSelect.value = currentMazeSize;
+        if (currentObjectScreenSelect) currentObjectScreenSelect.value = currentObjectScreen;
+        if (currentRedTileVisibilitySelect) currentRedTileVisibilitySelect.value = currentRedTileVisibility;
+        if (currentObjectShapeSelect) currentObjectShapeSelect.value = currentShape;
 
-        // Reattach all event listeners
-        const startButton = document.getElementById('startButton');
-        const startTimedButton = document.getElementById('startTimedButton');
-        const startTimedLongButton = document.getElementById('startTimedLongButton');
+        // Set up texture upload button event listeners
         const wallTextureInput = document.getElementById('wallTexture') as HTMLInputElement;
         const floorTextureInput = document.getElementById('floorTexture') as HTMLInputElement;
-        const objectShapeSelect = document.getElementById('objectShape') as HTMLSelectElement;
+        
+        if (wallTextureButton && wallTextureInput) {
+            wallTextureButton.addEventListener('click', () => {
+                wallTextureInput.click();
+            });
+        }
+        
+        if (floorTextureButton && floorTextureInput) {
+            floorTextureButton.addEventListener('click', () => {
+                floorTextureInput.click();
+            });
+        }
 
         // Handle wall texture upload
         wallTextureInput?.addEventListener('change', async (e) => {
@@ -189,9 +138,8 @@ function showRestartScreen() {
             if (input.files && input.files[0]) {
                 try {
                     customWallTexture = await handleTextureUpload(input.files[0], 'wall');
-                    const label = input.parentElement;
-                    if (label) {
-                        label.textContent = '✓ Wall Texture Ready';
+                    if (wallTextureButton) {
+                        wallTextureButton.textContent = '✓ Wall Texture Ready';
                     }
                 } catch (err) {
                     if (err instanceof Error) {
@@ -209,9 +157,8 @@ function showRestartScreen() {
             if (input.files && input.files[0]) {
                 try {
                     customFloorTexture = await handleTextureUpload(input.files[0], 'floor');
-                    const label = input.parentElement;
-                    if (label) {
-                        label.textContent = '✓ Floor Texture Ready';
+                    if (floorTextureButton) {
+                        floorTextureButton.textContent = '✓ Floor Texture Ready';
                     }
                 } catch (err) {
                     if (err instanceof Error) {
@@ -223,33 +170,39 @@ function showRestartScreen() {
             }
         });
 
+        // Get buttons
+        const startButton = document.getElementById('startButton');
+        const startTimedButton = document.getElementById('startTimedButton');
+        const startTimedLongButton = document.getElementById('startTimedLongButton');
+        const objectShapeSelect = document.getElementById('objectShape') as HTMLSelectElement;
+
         // Handle regular start button click
         startButton?.addEventListener('click', () => {
-            const selectedMode = newObjectModeSelect.value as ObjectPlacementMode;
-            const selectedSize = parseInt(newMazeSizeSelect.value);
-            const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'object';
-            const showObjectScreens = newObjectScreenSelect.value === 'show';
-            const showRedTiles = newRedTileVisibilitySelect.value === 'show';
+            const selectedMode = currentObjectModeSelect.value as ObjectPlacementMode;
+            const selectedSize = parseInt(currentMazeSizeSelect.value);
+            const selectedMinimapMode = currentMinimapSelect.value as 'always' | 'object';
+            const showObjectScreens = currentObjectScreenSelect.value === 'show';
+            const showRedTiles = currentRedTileVisibilitySelect.value === 'show';
             initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, false, 60, 10, selectedMinimapMode, showObjectScreens, showRedTiles, currentShape);
         });
 
         // Handle 60s timed game button click
         startTimedButton?.addEventListener('click', () => {
-            const selectedMode = newObjectModeSelect.value as ObjectPlacementMode;
-            const selectedSize = parseInt(newMazeSizeSelect.value);
-            const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'object';
-            const showObjectScreens = newObjectScreenSelect.value === 'show';
-            const showRedTiles = newRedTileVisibilitySelect.value === 'show';
+            const selectedMode = currentObjectModeSelect.value as ObjectPlacementMode;
+            const selectedSize = parseInt(currentMazeSizeSelect.value);
+            const selectedMinimapMode = currentMinimapSelect.value as 'always' | 'object';
+            const showObjectScreens = currentObjectScreenSelect.value === 'show';
+            const showRedTiles = currentRedTileVisibilitySelect.value === 'show';
             initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 60, 10, selectedMinimapMode, showObjectScreens, showRedTiles, currentShape);
         });
 
         // Handle 120s timed game button click
         startTimedLongButton?.addEventListener('click', () => {
-            const selectedMode = newObjectModeSelect.value as ObjectPlacementMode;
-            const selectedSize = parseInt(newMazeSizeSelect.value);
-            const selectedMinimapMode = newMinimapModeSelect.value as 'always' | 'object';
-            const showObjectScreens = newObjectScreenSelect.value === 'show';
-            const showRedTiles = newRedTileVisibilitySelect.value === 'show';
+            const selectedMode = currentObjectModeSelect.value as ObjectPlacementMode;
+            const selectedSize = parseInt(currentMazeSizeSelect.value);
+            const selectedMinimapMode = currentMinimapSelect.value as 'always' | 'object';
+            const showObjectScreens = currentObjectScreenSelect.value === 'show';
+            const showRedTiles = currentRedTileVisibilitySelect.value === 'show';
             initGame(selectedMode, customWallTexture, customFloorTexture, selectedSize, true, 120, 30, selectedMinimapMode, showObjectScreens, showRedTiles, currentShape);
         });
 
@@ -310,7 +263,7 @@ export function initGame(
     );
 
     // Wait for textures to load
-    mazeScene.onTexturesLoaded(() => {
+    mazeScene.onTexturesLoadedCallback(() => {
         if (loadingScreen && gameContainer) {
             loadingScreen.style.display = 'none';
             gameContainer.style.display = 'block';
@@ -339,6 +292,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const wallTextureInput = document.getElementById('wallTexture') as HTMLInputElement;
     const floorTextureInput = document.getElementById('floorTexture') as HTMLInputElement;
     const objectShapeSelect = document.getElementById('objectShape') as HTMLSelectElement;
+    
+    // Handle wall texture button click
+    const wallTextureButton = document.getElementById('wallTextureButton');
+    if (wallTextureButton && wallTextureInput) {
+        wallTextureButton.addEventListener('click', () => {
+            wallTextureInput.click();
+        });
+    }
+    
+    // Handle floor texture button click
+    const floorTextureButton = document.getElementById('floorTextureButton');
+    if (floorTextureButton && floorTextureInput) {
+        floorTextureButton.addEventListener('click', () => {
+            floorTextureInput.click();
+        });
+    }
 
     // Handle wall texture upload
     wallTextureInput?.addEventListener('change', async (e) => {
@@ -346,9 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (input.files && input.files[0]) {
             try {
                 customWallTexture = await handleTextureUpload(input.files[0], 'wall');
-                const label = input.parentElement;
-                if (label) {
-                    label.textContent = '✓ Wall Texture Ready';
+                const wallTextureButton = document.getElementById('wallTextureButton');
+                if (wallTextureButton) {
+                    wallTextureButton.textContent = '✓ Wall Texture Ready';
                 }
             } catch (err) {
                 if (err instanceof Error) {
@@ -366,9 +335,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (input.files && input.files[0]) {
             try {
                 customFloorTexture = await handleTextureUpload(input.files[0], 'floor');
-                const label = input.parentElement;
-                if (label) {
-                    label.textContent = '✓ Floor Texture Ready';
+                const floorTextureButton = document.getElementById('floorTextureButton');
+                if (floorTextureButton) {
+                    floorTextureButton.textContent = '✓ Floor Texture Ready';
                 }
             } catch (err) {
                 if (err instanceof Error) {

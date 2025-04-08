@@ -5,8 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Maze Game</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/98.css" />
     <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #008080; /* Windows 98 teal background */
+            font-family: Arial, sans-serif; 
+        }
         .controls {
             position: fixed;
             top: 20px;
@@ -34,7 +40,7 @@
             padding: 10px;
             border-radius: 10px;
         }
-        button {
+        .control-button {
             width: 50px;
             height: 50px;
             border: none;
@@ -55,7 +61,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(45deg, #1a1a1a, #4a4a4a);
+            background-color: #008080; /* Windows 98 teal background */
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -66,90 +72,18 @@
         .title {
             color: white;
             font-size: 3em;
-            margin-bottom: 2em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        .menu-button {
-            width: 400px;
-            height: 50px;
-            margin: 10px;
-            border: none;
-            border-radius: 25px;
-            background: #007bff;
-            color: white;
-            font-size: 1.2em;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            text-align: center;
-            padding: 0 20px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .menu-button:hover {
-            background: #0056b3;
-        }
-
-        .texture-upload {
-            display: none;
-        }
-
-        .texture-label {
-            width: 400px;
-            height: 50px;
-            margin: 10px;
-            border: none;
-            border-radius: 25px;
-            background: #28a745;
-            color: white;
-            font-size: 1.2em;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0 20px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .texture-label:hover {
-            background: #218838;
-        }
-
-        #game {
-            display: none;
-        }
-
-        /* Game Over Screen Styles */
-        #gameOverScreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .game-over-title {
-            color: white;
-            font-size: 4em;
             margin-bottom: 1em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
-
-        .game-over-text {
-            color: white;
-            font-size: 1.5em;
+        
+        .title-window {
+            width: 500px;
             margin-bottom: 2em;
+        }
+        
+        /* Game container */
+        #game {
+            display: none;
         }
 
         /* Loading Screen Styles */
@@ -187,6 +121,83 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Custom styles to adjust 98.css */
+        .window {
+            margin-bottom: 16px;
+        }
+        
+        .window-body {
+            margin: 0;
+            padding: 16px;
+        }
+        
+        .field-row {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .menu-options {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .texture-upload {
+            display: none;
+        }
+
+        .texture-label {
+            width: 400px;
+            height: 50px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            background: #28a745;
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .texture-label:hover {
+            background: #218838;
+        }
+
+        /* Game Over Screen Styles */
+        #gameOverScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .game-over-title {
+            color: white;
+            font-size: 4em;
+            margin-bottom: 1em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .game-over-text {
+            color: white;
+            font-size: 1.5em;
+            margin-bottom: 2em;
+        }
 
         #collectScreen {
             position: fixed;
@@ -201,82 +212,193 @@
             align-items: center;
             z-index: 1000;
         }
+
+        /* Override button styles to preserve 98.css */
+        .window-body button {
+            width: auto;
+            height: auto;
+            border-radius: 0;
+            background: transparent;
+            color: inherit;
+            font-size: inherit;
+        }
+
+        /* Apply 98.css button styles */
+        .action-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 16px;
+            gap: 8px;
+        }
+
+        /* Make compact buttons for the title window field rows */
+        .field-row label {
+            min-width: 140px;
+        }
+
+        /* Adjust title window width for different screen sizes */
+        @media (max-width: 520px) {
+            .title-window {
+                width: 90%;
+            }
+        }
+        
+        /* Ensure the titles for UI windows are properly sized */
+        .compass-display .title-bar-text,
+        .timer-display .title-bar-text,
+        .score-display .title-bar-text,
+        .controls-display .title-bar-text {
+            font-size: 12px;
+        }
+        
+        /* Ensure that the in-game UI windows aren't too big */
+        .compass-display,
+        .timer-display,
+        .score-display {
+            font-size: 14px;
+        }
+        
+        /* Make sure window bodies have appropriate padding */
+        .compass-display .window-body,
+        .timer-display .window-body,
+        .score-display .window-body {
+            padding: 6px !important;
+        }
     </style>
 </head>
 <body>
     <div id="titleScreen">
-        <h1 class="title">3D Maze Game</h1>
-        
-        <label for="wallTexture" class="texture-label">
-            Upload Wall Texture (Any Size)
-            <input type="file" id="wallTexture" class="texture-upload" accept="image/*">
-        </label>
-        
-        <label for="floorTexture" class="texture-label">
-            Upload Floor Texture (Any Size)
-            <input type="file" id="floorTexture" class="texture-upload" accept="image/*">
-        </label>
+        <div class="window title-window">
+            <div class="title-bar">
+                <div class="title-bar-text">3D Maze Game</div>
+                <div class="title-bar-controls">
+                    <button aria-label="Minimize"></button>
+                    <button aria-label="Maximize"></button>
+                    <button aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="window-body">
+                <div class="field-row">
+                    <label for="wallTexture">Wall Texture:</label>
+                    <input type="file" id="wallTexture" class="texture-upload" accept="image/*">
+                    <button id="wallTextureButton">Upload Wall Texture</button>
+                </div>
+                
+                <div class="field-row">
+                    <label for="floorTexture">Floor Texture:</label>
+                    <input type="file" id="floorTexture" class="texture-upload" accept="image/*">
+                    <button id="floorTextureButton">Upload Floor Texture</button>
+                </div>
 
-        <select id="objectMode" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="closest">Object on Closest Red Tile</option>
-            <option value="random">Object on Random Red Tile</option>
-            <option value="all">Objects on All Red Tiles</option>
-        </select>
+                <div class="field-row">
+                    <label for="objectMode">Object Placement:</label>
+                    <select id="objectMode" class="menu-options">
+                        <option value="closest">Object on Closest Red Tile</option>
+                        <option value="random">Object on Random Red Tile</option>
+                        <option value="all">Objects on All Red Tiles</option>
+                    </select>
+                </div>
 
-        <select id="mazeSize" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="8">Default Size (8x8)</option>
-            <option value="16">Large Size (16x16)</option>
-        </select>
+                <div class="field-row">
+                    <label for="mazeSize">Maze Size:</label>
+                    <select id="mazeSize" class="menu-options">
+                        <option value="8">Default Size (8x8)</option>
+                        <option value="16">Large Size (16x16)</option>
+                    </select>
+                </div>
 
-        <select id="minimapMode" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="always">Minimap Always Visible</option>
-            <option value="object">Minimap Unlocked by Collection</option>
-        </select>
+                <div class="field-row">
+                    <label for="minimapMode">Minimap:</label>
+                    <select id="minimapMode" class="menu-options">
+                        <option value="always">Always Visible</option>
+                        <option value="object">Unlocked by Collection</option>
+                    </select>
+                </div>
 
-        <select id="objectScreenMode" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="show">Show Collection Screens</option>
-            <option value="hide">Hide Collection Screens</option>
-        </select>
+                <div class="field-row">
+                    <label for="objectScreenMode">Collection Screens:</label>
+                    <select id="objectScreenMode" class="menu-options">
+                        <option value="show">Show</option>
+                        <option value="hide">Hide</option>
+                    </select>
+                </div>
 
-        <select id="objectShape" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="mixed">Mixed Shapes</option>
-            <option value="pyramid">Pyramid Shape</option>
-            <option value="sphere">Sphere Shape</option>
-            <option value="cylinder">Cylinder Shape</option>
-            <option value="cube">Cube Shape</option>
-        </select>
+                <div class="field-row">
+                    <label for="objectShape">Object Shape:</label>
+                    <select id="objectShape" class="menu-options">
+                        <option value="mixed">Mixed Shapes</option>
+                        <option value="pyramid">Pyramid</option>
+                        <option value="sphere">Sphere</option>
+                        <option value="cylinder">Cylinder</option>
+                        <option value="cube">Cube</option>
+                    </select>
+                </div>
 
-        <select id="redTileVisibility" class="menu-button" style="background: #6c757d; text-align: center;">
-            <option value="show">Show Red Tiles</option>
-            <option value="hide">Hide Red Tiles</option>
-        </select>
-        
-        <button id="startTimedLongButton" class="menu-button" style="background: #dc3545;">Start Long Timed Game (120s)</button>
-        <button id="startTimedButton" class="menu-button" style="background: #dc3545;">Start Timed Game (60s)</button>
-        <button id="startButton" class="menu-button">Start Game</button>
+                <div class="field-row">
+                    <label for="redTileVisibility">Red Tiles:</label>
+                    <select id="redTileVisibility" class="menu-options">
+                        <option value="show">Show</option>
+                        <option value="hide">Hide</option>
+                    </select>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="startTimedLongButton">Start 120s Game</button>
+                    <button id="startTimedButton">Start 60s Game</button>
+                    <button id="startButton">Start Game</button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div id="game"></div>
     
     <div id="gameOverScreen">
-        <h1 class="game-over-title">Congratulations!</h1>
-        <p class="game-over-text">You've successfully escaped the maze!</p>
-        <button id="restartButton" class="menu-button">Play Again</button>
+        <div class="window" style="width: 400px;">
+            <div class="title-bar">
+                <div class="title-bar-text" id="gameOverTitle">Maze Completed!</div>
+                <div class="title-bar-controls">
+                    <button aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="window-body">
+                <p id="gameOverMessage">Congratulations! You've successfully escaped the maze!</p>
+                <div class="action-buttons">
+                    <button id="restartButton">Play Again</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div id="collectScreen" style="display: none;">
-        <div class="game-over-title">
-            <span id="collectShapeTitle">Object Collected!</span>
+    <div id="collectScreen">
+        <div class="window" style="width: 350px;">
+            <div class="title-bar">
+                <div class="title-bar-text" id="collectShapeTitle">Object Collected!</div>
+                <div class="title-bar-controls">
+                    <button aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="window-body">
+                <p id="collectShapeMessage">You found a mystical object. Keep exploring to find more!</p>
+                <div class="action-buttons">
+                    <button id="continueButton">Continue</button>
+                </div>
+            </div>
         </div>
-        <p class="game-over-text">
-            <span id="collectShapeMessage">You found a mystical object. Keep exploring to find more!</span>
-        </p>
-        <button id="continueButton" class="menu-button">Continue</button>
     </div>
 
     <div id="loadingScreen">
-        <h2 class="loading-text">Loading Maze...</h2>
-        <div class="loading-spinner"></div>
+        <div class="window" style="width: 300px;">
+            <div class="title-bar">
+                <div class="title-bar-text">Loading...</div>
+            </div>
+            <div class="window-body">
+                <p>Loading Maze...</p>
+                <div style="display: flex; justify-content: center; margin-top: 16px;">
+                    <img src="https://win98icons.alexmeub.com/icons/png/hourglass-0.png" alt="Loading">
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html> 
